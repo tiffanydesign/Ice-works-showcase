@@ -2,6 +2,12 @@
 
 > 一件以“冰的凝结、融化与流动”为视觉隐喻的实验性交互网页作品。
 
+> **说明**：本仓库是 [MegD1/Ice-works-showcase](https://github.com/MegD1/Ice-works-showcase) 的复现部署版本，
+> 原作与原始代码版权归原作者所有（MIT，见 [LICENSE](LICENSE)）。
+> 本副本仅新增 GitHub Pages 静态导出配置（`output: "export"` + `basePath`）与资源路径前缀。
+>
+> 在线预览：<https://tiffanydesign.github.io/Ice-works-showcase/>（建议桌面端 Chrome / Edge 访问）
+
 [![License: MIT](https://img.shields.io/badge/代码许可-MIT-black.svg)](LICENSE)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
 ![Three.js](https://img.shields.io/badge/Three.js-r185-black)
