@@ -1,3 +1,4 @@
+import { asset } from "./basePath";
 import { PROJECTS } from "./projects";
 
 export const EASES = [
@@ -101,13 +102,17 @@ export function defaultParams() {
     spinTime: 2.6,
     spinEase: "power2.inOut",
     spinDelay: 0,
-    // -2, and it has to stay there. This is how far off-screen LEFT the ring's
-    // centre sits, and it is what makes one card face the reader with the rest
-    // of the arc out of frame. Tried at -1.35 to close the right margin: the
-    // ring came far enough in that its arc crossed the middle of the screen,
-    // three cards showed at once and the front one hung half off the right
-    // edge. The margin is not this parameter's to fix — planeSize is.
-    posX: -2, // fraction of half the viewport width
+    // -1.72, moved right from -2. This is how far off-screen LEFT the ring's
+    // centre sits, and it is what puts one card in front of the reader with the
+    // rest of the arc out of frame.
+    //
+    // THE FLOOR IS ABOUT -1.6, found by overshooting: at -1.35 the ring came far
+    // enough in that its arc crossed the middle of the screen, three cards
+    // showed at once and the front one hung off the right edge. -1.72 keeps a
+    // single card and one arc while moving the whole composition — card and
+    // name lockup together, because the lockup is positioned off the ring —
+    // about 5% of the viewport to the right.
+    posX: -1.72, // fraction of half the viewport width
     posY: 0,
     endScale: 4.46,
     moveTime: 2.2,
@@ -127,6 +132,12 @@ export function defaultParams() {
 
 
     // -- the intro heading, in the scene ---------------------------------
+    // The opening heading. `textImage` wins when set: the brand lockup rather
+    // than the words, drawn as one quad with the same wipe — see splitText.
+    // `text` is kept because the glyph path is still there and still correct,
+    // and because clearing textImage in the dev GUI should give it back.
+    textImage: asset("phenome-logo.svg"),
+    textImageScale: 11, // multiples of textSize; 41 x 11 is about 450px wide
     text: "PHENOME RING",
     textSize: 41,
     textFont: "helvetica-neue-lt-pro",
@@ -145,10 +156,13 @@ export function defaultParams() {
     // -- the meta either side of the ring --------------------------------
     // [number . name] left, [type . year] right. Insets and gaps in vw so the
     // pairs hold their relationship as the window changes.
-    // Back to 5.5. Moved to 8 to close the gap to the card, then the card grew
-    // to meet it and the name ended up under the picture's left edge instead.
-    // The gap is the card's to close, and it has.
-    metaLeft: 5.5,
+    // 5.5 -> 12. The lockup is inset from the SCREEN and the card is positioned
+    // off the RING, so moving the ring right (posX above) opened a gap between
+    // them that nothing else closes. Measured at 1440 with posX -1.72: the card
+    // starts at 608 and the name ended at 300, leaving a third of the screen
+    // empty between two things that read as one line. At 12vw the name ends
+    // near 470.
+    metaLeft: 12,
     metaRight: 5.5,
     // 4.7 -> 2.5. The number and the name are one lockup; the wide gap was
     // drawn when the name was 24px and had a screen to sit in. It is the space
@@ -243,7 +257,9 @@ export function defaultParams() {
     assembleTime: 1.55,
     assembleEase: "power3.inOut",
     assembleSpread: 3.8,
-    assembleCardScale: 2.6,
+    // x1.5, asked for: the opening card is the first thing seen and was
+    // reading as a thumbnail of the ring rather than as the product.
+    assembleCardScale: 3.9,
     assembleCell: 13,
     assembleOpacity: 0.96,
     assembleHaloReach: 148,

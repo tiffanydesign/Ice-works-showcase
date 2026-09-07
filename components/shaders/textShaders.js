@@ -21,14 +21,22 @@ export const textFragmentShader = /* glsl */ `
   uniform float uReveal;
   uniform vec3  uColor;
   uniform float uOpacity;
+  // 1 = the texture is a MASK and uColor is the ink (a glyph); 0 = the texture
+  // carries its own colour and uColor is ignored (the brand lockup). The wipe
+  // above is identical either way, which is the point of doing it here rather
+  // than with a second material.
+  uniform float uTinted;
 
   void main() {
     float gy = vUv.y + 1.0 - uReveal;
     if (gy > 1.0 || gy < 0.0) discard;
 
-    float a = texture2D(uTex, vec2(vUv.x, gy)).a;
-    if (a <= 0.001) discard;
+    vec4 t = texture2D(uTex, vec2(vUv.x, gy));
+    if (t.a <= 0.001) discard;
 
-    gl_FragColor = vec4(uColor, a * uOpacity);
+    // The canvas is premultiplied, so the picture's own colour has to be
+    // divided back out before it is blended again.
+    vec3 rgb = mix(t.rgb / max(t.a, 0.001), uColor, uTinted);
+    gl_FragColor = vec4(rgb, t.a * uOpacity);
   }
 `;

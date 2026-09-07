@@ -17,9 +17,9 @@ export const PROJECTS = [
   // -- the three the scroll visits, and they are ADJACENT on purpose. See the
   //    note under FOCUS below: the order here is what makes the journey one
   //    slot per step instead of a spin across the ring.
-  { file: "9.webp", name: "Midnight Black", type: "Colourway", year: "2026" },
-  { file: "3.webp", name: "Champagne Gold", type: "Colourway", year: "2026" },
   { file: "5.webp", name: "Arctic White", type: "Colourway", year: "2026" },
+  { file: "3.webp", name: "Champagne Gold", type: "Colourway", year: "2026" },
+  { file: "9.webp", name: "Midnight Black", type: "Colourway", year: "2026" },
   { file: "7.webp", name: "Rose Quartz", type: "Colourway", year: "2026" },
   { file: "4.webp", name: "Polished Titanium", type: "CGI", year: "2026" },
   { file: "10.webp", name: "Morning Ritual", type: "Lifestyle", year: "2026" },
@@ -35,16 +35,23 @@ export const PROJECTS = [
 //
 // ADJACENT, and the list above is ordered for it. Art is dealt by ring slot,
 // and cellOf(slot) counts BACKWARDS: (imageOffset - slot) mod count. So three
-// cells that step down by one — 6, 5, 4 — are three slots that step up by one,
-// and each turn of the journey is a single slot rather than a sweep across the
-// ring. That is why Midnight Black, Champagne Gold, Arctic White sit in that
-// order above and are read out of it in reverse.
+// cells that step UP by one — 4, 5, 6 — are three slots that step DOWN by one,
+// and each turn of the journey is a single slot rather than a sweep across it.
+//
+// THE DIRECTION IS THE POINT, not just the adjacency. Cells 6,5,4 and cells
+// 4,5,6 are the same three cards and the same one-slot steps; what differs is
+// which way the ring turns between them, and so which side a card enters from.
+// The first arrangement turned the ring so that scrolling DOWN brought the next
+// card up from below — the page went one way and the picture went the other.
+// This one turns it the other way: scroll down, the ring rolls forward, the
+// next card comes over the top. Reversing the three rows above rather than
+// reversing FOCUS keeps the colour order (white, gold, black) intact.
 //
 // The cost, stated because the list's own header warns about it: all three sit
 // on blue grounds, so the alternation that keeps neighbouring cards from
 // bleeding into one another in the goo is broken across exactly this run. It
 // reads as one continuous field behind the three, which for a colourway
 // sequence is the right accident.
-export const FOCUS = [6, 5, 4];
+export const FOCUS = [4, 5, 6];
 
 export const IMAGE_FILES = PROJECTS.map((p) => p.file);
