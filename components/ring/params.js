@@ -56,7 +56,13 @@ export function defaultParams() {
     tightMetaWidth: 70, // vw of box, and so of filter region, around it
 
     // -- geometry, all at the reference window ---------------------------
-    planeSize: 90, // long edge in px; aspect locked at 1.5 : 1
+    // x1.5, 2026-09-07: the deck is three product close-ups now rather than
+    // twelve portfolio frames, so a card can be read rather than recognised.
+    // planeSize, NOT endScale - the first attempt scaled endScale and that is
+    // the whole stage, radius included, so the ring grew with the cards and the
+    // front card left the right-hand edge of the screen. This grows the card on
+    // the arc it already sits on.
+    planeSize: 135, // long edge in px; aspect locked at 1.5 : 1
     count: PROJECTS.length, // one plane per project, so the deal comes out even
     ringRadius: 340,
     seed: 0, // where plane 0 sits, degrees (0 = 3 o'clock)
@@ -103,6 +109,14 @@ export function defaultParams() {
     snapFrom: 1, // rad/s under which the ring commits to a slot
     pickTime: 0.55, // click-to-centre: seconds for one slot, root-scaled
     pickEase: "power3.inOut",
+
+    // -- autoplay ---------------------------------------------------------
+    // The deck turns itself; see the runner in Carousel.jsx. autoFirst is the
+    // beat after the entry settles before the first advance — long enough that
+    // the ring is read as having arrived rather than as still assembling.
+    // autoHold is the look at each card after the turn into it.
+    autoFirst: 1.6,
+    autoHold: 1.9,
 
     // -- the intro heading, in the scene ---------------------------------
     text: "PHENOME RING",
@@ -188,8 +202,14 @@ export function defaultParams() {
     focusParticles: true,
     focusParticleFrom: 1024,
     focusParticleReach: 82,
-    focusParticleCell: 11,
+    focusParticleCell: 15,
     focusParticleOpacity: 0.58,
+    // Letters picked by column rather than by weight, so the halo spells
+    // PHENOME left to right instead of drawing the tail of the density ramp.
+    // Off restores the ramp, which is still what the other two fields read.
+    // The cell above is the type size: seven letters want about half the reach.
+    focusParticleWord: true,
+    focusParticleWordFill: 0.9,
     focusParticleEnter: 0.16,
     focusParticleExit: 0.11,
     focusParticleDrift: 0.7,

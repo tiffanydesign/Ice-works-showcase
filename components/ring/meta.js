@@ -2,8 +2,8 @@ import gsap from "gsap";
 import { PROJECTS } from "./projects";
 
 /**
- * The two lockups of type either side of the ring: [number . name] on the
- * left, [type . year] on the right. Both read whatever card is facing front.
+ * The lockup of type beside the ring: [number . name], on the left. It reads
+ * whatever card is facing front.
  *
  * Changing card melts one set of words into the next. Two copies are stacked,
  * one blurred out as the other blurs in, and the pair run through an alpha
@@ -23,7 +23,12 @@ import { PROJECTS } from "./projects";
  * positions the other word, and a missing one would move it.
  */
 
-const SIDES = ["left", "right"];
+// LEFT ONLY, 2026-09-07. The right lockup was [type . year] and on a deck of
+// three colourways it said "Colourway 2026" three times running — a caption
+// that never changes is not a caption, it is furniture. Removed by name here
+// rather than hidden in CSS, so the DOM, the morph timelines and the goo
+// filter it drives all go with it.
+const SIDES = ["left"];
 const SLOTS = 2;
 
 const slotsOf = (row) => row?.firstElementChild?.children;
@@ -140,7 +145,6 @@ function createGroup(side, groups, params) {
 export function createMeta(refs, params) {
   const { groups, list, loader, cut, live } = refs;
   const left = createGroup("left", groups, params);
-  const right = createGroup("right", groups, params);
 
   // Only the alpha row does any work; colour passes straight through.
   const setThreshold = () => {
@@ -251,15 +255,13 @@ export function createMeta(refs, params) {
     const p = PROJECTS[i];
     if (!p) return;
     left.set([String(i + 1).padStart(2, "0"), p.name]);
-    right.set([p.type, p.year]);
-    // The groups are hidden from the accessibility tree, so the card is
-    // announced once, in full, from the live region instead of four times.
+    // The group is hidden from the accessibility tree, so the card is
+    // announced once, in full, from the live region instead of twice.
     if (live) live.textContent = `${p.name}. ${p.type}, ${p.year}.`;
   };
 
   const dispose = () => {
     gsap.killTweensOf(left.m);
-    gsap.killTweensOf(right.m);
   };
 
   return { show, style, setThreshold, dispose };

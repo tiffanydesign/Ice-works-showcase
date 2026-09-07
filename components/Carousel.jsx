@@ -147,6 +147,8 @@ export default function Carousel() {
       uFocusParticles: { value: new THREE.Vector4() },
       // flow phase in cells, spatial-motion multiplier
       uFocusParticleMotion: { value: new THREE.Vector2() },
+      // spell the brand rather than read the ramp, and how solid to keep it
+      uFocusWord: { value: new THREE.Vector2() },
       uTagTex: {
         value: new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1),
       },
@@ -367,6 +369,68 @@ export default function Carousel() {
       });
     };
 
+    /* --------------------------------------------------------- autoplay */
+    /* THE DECK PLAYS ITSELF, 2026-09-07.
+
+       This piece used to be a page of its own, where taking the wheel was the
+       whole interaction. It is embedded in a product page now, inside a section
+       the reader is scrolling past, and a carousel that waits to be grabbed in
+       that position is a carousel nobody turns — the two controls that used to
+       ask for the grab ("Spin the ring family", "Release the wheel") are gone
+       from the host page with this change.
+
+       So it advances on its own: settle, hold, advance, and after the last card
+       tell the host it is finished. A human who does grab it — a wheel, a drag,
+       a click — takes it over permanently; autoplay never fights a pointer and
+       never resumes behind one.
+
+       The hand-off is a postMessage rather than a scroll, because this document
+       is in an iframe and scrolling itself would move nothing the reader can
+       see. The host decides what "next" means. */
+    let autoAt = 0;
+    let autoTimer = 0;
+    let autoDone = false;
+    let autoCancelled = reducedMotion.matches;
+
+    const cancelAuto = () => {
+      autoCancelled = true;
+      clearTimeout(autoTimer);
+      autoTimer = 0;
+    };
+
+    const tellHost = (what) => {
+      if (window.parent === window) return;
+      try {
+        window.parent.postMessage({ source: "phenome-ring-showcase", type: what }, "*");
+      } catch (e) {
+        /* A host on another origin that refuses the message is not a failure
+           worth breaking the carousel over. */
+      }
+    };
+
+    const autoStep = () => {
+      if (autoCancelled || disposed) return;
+      const last = Math.round(params.count) - 1;
+      if (autoAt >= last) {
+        if (!autoDone) {
+          autoDone = true;
+          /* The last card has had its hold; the reader has seen all three. */
+          tellHost("finished");
+        }
+        return;
+      }
+      autoAt += 1;
+      pick(autoAt);
+      /* pickTime is per slot and the run is always one slot, so the wait is
+         the tween plus the beat the card is meant to be looked at for. */
+      autoTimer = setTimeout(autoStep, (params.pickTime + params.autoHold) * 1000);
+    };
+
+    const startAuto = () => {
+      if (autoCancelled || autoTimer) return;
+      autoTimer = setTimeout(autoStep, params.autoFirst * 1000);
+    };
+
     /* ------------------------------------------------------------ pointer */
     // World px, origin at screen centre, Y up — the space the shader works in,
     // so nothing is converted twice.
@@ -496,6 +560,14 @@ export default function Carousel() {
       if (!interactive || pointerTravel >= 5 || over < 0) return;
       pick(over);
     };
+
+    /* One listener rather than three inside the handlers: the point is that ANY
+       deliberate input ends autoplay, and stating it once means a fourth input
+       added later cannot forget to. Capture, so it lands before the handler
+       that acts on the event. */
+    for (const ev of ["wheel", "pointerdown", "touchstart", "keydown"]) {
+      container.addEventListener(ev, cancelAuto, { capture: true, passive: true });
+    }
 
     container.addEventListener("wheel", onWheel, { passive: false });
     container.addEventListener("pointerdown", onPointerDown);
@@ -816,16 +888,12 @@ export default function Carousel() {
         // the rest of their travel pulling away.
         const sx =
           i === 0
-            ? easeOutCubic(
-                clamp01(assembleOn ? (u - 0.5) / 0.46 : u / 0.7),
-              )
+            ? easeOutCubic(clamp01(assembleOn ? (u - 0.5) / 0.46 : u / 0.7))
             : easeOutCubic(clamp01(u / 0.34));
         const sy =
           i === 0
             ? easeOutCubic(
-                clamp01(
-                  assembleOn ? (u - 0.58) / 0.38 : (u - 0.18) / 0.74,
-                ),
+                clamp01(assembleOn ? (u - 0.58) / 0.38 : (u - 0.18) / 0.74),
               )
             : easeOutCubic(clamp01((u - 0.06) / 0.36));
         // The swell rides on the birth scale rather than uSize, so a plane
@@ -938,6 +1006,10 @@ export default function Carousel() {
       uniforms.uFocusParticleMotion.value.set(
         particleFlow,
         reducedMotion.matches ? 0 : 1,
+      );
+      uniforms.uFocusWord.value.set(
+        params.focusParticleWord ? 1 : 0,
+        params.focusParticleWordFill,
       );
 
       // Both tests, not either: the width covers a small window on a mouse,
@@ -1117,6 +1189,7 @@ export default function Carousel() {
         delay: 0.25,
         onComplete: () => {
           interactive = true;
+          startAuto();
         },
       });
 
@@ -1410,6 +1483,10 @@ export default function Carousel() {
       renderer.setAnimationLoop(null);
 
       window.removeEventListener("resize", onResize);
+      clearTimeout(autoTimer);
+      for (const ev of ["wheel", "pointerdown", "touchstart", "keydown"]) {
+        container.removeEventListener(ev, cancelAuto, { capture: true });
+      }
       container.removeEventListener("wheel", onWheel);
       container.removeEventListener("pointerdown", onPointerDown);
       container.removeEventListener("pointermove", onPointerMove);
@@ -1451,32 +1528,17 @@ export default function Carousel() {
           is the carousel. */}
       <div ref={containerRef} className="fixed inset-0 touch-none" />
 
-      {/* Never takes the pointer: the canvas underneath handles the wheel and
-          the drag, and the column has no business interrupting a throw that
-          happens to pass under it. Sized from styleMeta, not a class, so it
-          takes the narrow bump with every other label. */}
-      <ul
-        ref={listRef}
-        aria-label="Projects"
-        style={{
-          fontFamily: '"Satoshi", ui-sans-serif, system-ui, sans-serif',
-        }}
-        className="pointer-events-none fixed right-[12vw] top-[2.4vh] z-10 flex flex-col items-start text-right leading-[1.4] tracking-[0.01em] text-[#0a0a0a] opacity-0 max-sm:hidden"
-      >
-        {PROJECTS.map((p, i) => (
-          <li
-            key={p.file}
-            ref={(el) => {
-              itemsRef.current[i] = el;
-            }}
-            // No transition, deliberately: the colour turns over the moment
-            // the ring passes the halfway point between two slots.
-            style={{ opacity: 0.2 }}
-          >
-            {p.name}
-          </li>
-        ))}
-      </ul>
+      {/* THE PROJECT COLUMN IS GONE, 2026-09-07. It listed all twelve cards up
+          the right-hand side and dimmed the ones you were not on — an index,
+          which is what a portfolio carousel of twelve wants. This deck is three
+          colourways of one product; an index of three, held permanently on
+          screen beside a card that names itself, is a list of things you can
+          already see. listRef stays wired so nothing downstream has to guard
+          for it, and reads null.
+
+          The right lockup went with it: [type . year] said "Colourway 2026" on
+          all three cards, and a caption that never changes is furniture. See
+          ring/meta.js — it is removed at the source, not hidden here. */}
 
       {/* Three rows per side, identical in structure and all carrying both
           words: two inside the filtered wrapper that melt into each other, and
@@ -1485,10 +1547,7 @@ export default function Carousel() {
 
           Hidden from the accessibility tree; a card is announced once, in
           full, from the live region below. */}
-      {[
-        { side: "left", justify: "flex-start" },
-        { side: "right", justify: "flex-end" },
-      ].map(({ side, justify }) => {
+      {[{ side: "left", justify: "flex-start" }].map(({ side, justify }) => {
         // Baseline, not centre: the halves are set at different sizes, and a
         // shared baseline is what makes them read as one lockup.
         const row = (
