@@ -125,9 +125,12 @@ export function mountGui(GUI, { params, state, info, actions }) {
   text.add(params, "text").onFinishChange(rebuildText);
   text.add(params, "textSize", 8, 200, 1).onChange(rebuildText);
   text
-    // Only families with an @font-face block in globals.css — anything else
-    // silently falls back to system sans and looks like a bug.
-    .add(params, "textFont", ["PP Neue Montreal", "Satoshi", "Geist"])
+    // Only families the document actually has — anything else silently falls
+    // back to system sans and looks like a bug. There is one now: the kit face
+    // the storefront this is embedded in also uses. The list is kept rather
+    // than replaced by a label because lil-gui's dropdown is how the value is
+    // proved to be a real choice rather than a hard-coded string.
+    .add(params, "textFont", ["helvetica-neue-lt-pro"])
     .name("family")
     .onChange(rebuildText);
   text.add(params, "textWeight", { Light: 300, Regular: 400 }).onChange(rebuildText); // prettier-ignore
@@ -226,6 +229,8 @@ export function mountGui(GUI, { params, state, info, actions }) {
   focusParticles.add(params, "focusParticleFrom", 0, 2000, 10).name("desktop from (px)");
   focusParticles.add(params, "focusParticleReach", 10, 260, 1).name("reach");
   focusParticles.add(params, "focusParticleCell", 5, 32, 0.5).name("glyph size");
+  focusParticles.add(params, "focusParticleWord").name("spell PHENOME");
+  focusParticles.add(params, "focusParticleWordFill", 0, 1, 0.01).name("word fill");
   focusParticles.add(params, "focusParticleOpacity", 0, 1, 0.01).name("opacity");
   focusParticles.add(params, "focusParticleEnter", 0.01, 1, 0.005).name("enter rate");
   focusParticles.add(params, "focusParticleExit", 0.01, 1, 0.005).name("exit rate");

@@ -56,13 +56,22 @@ export function defaultParams() {
     tightMetaWidth: 70, // vw of box, and so of filter region, around it
 
     // -- geometry, all at the reference window ---------------------------
-    // x1.5, 2026-09-07: the deck is three product close-ups now rather than
-    // twelve portfolio frames, so a card can be read rather than recognised.
-    // planeSize, NOT endScale - the first attempt scaled endScale and that is
-    // the whole stage, radius included, so the ring grew with the cards and the
-    // front card left the right-hand edge of the screen. This grows the card on
-    // the arc it already sits on.
-    planeSize: 135, // long edge in px; aspect locked at 1.5 : 1
+    // 90 -> 170. Twice, for two different reasons: x1.5 when the deck became
+    // three product close-ups rather than twelve portfolio frames, and again to
+    // close the margin either side. At 135 the card measured 437..1003 in a
+    // 1440 frame - balanced, but with the name lockup ending near 400 the whole
+    // composition sat in the left two thirds and the right read as unfinished.
+    //
+    // planeSize, NOT endScale and NOT posX: endScale is the whole stage with
+    // the radius in it, so the ring grows with the cards and the front card
+    // leaves the screen; posX brings the ring in far enough that the arc
+    // crosses the middle. Both were tried. This grows the card alone, on the
+    // arc it already sits on.
+    // 170 was one step too far: the card reached 719px in a 1440 frame, which
+    // put its left edge under the name, and the two neighbours on the arc came
+    // far enough into frame to read as debris in the corners rather than as a
+    // ring. 150 keeps the fuller composition without either.
+    planeSize: 150, // long edge in px; aspect locked at 1.5 : 1
     count: PROJECTS.length, // one plane per project, so the deal comes out even
     ringRadius: 340,
     seed: 0, // where plane 0 sits, degrees (0 = 3 o'clock)
@@ -92,6 +101,12 @@ export function defaultParams() {
     spinTime: 2.6,
     spinEase: "power2.inOut",
     spinDelay: 0,
+    // -2, and it has to stay there. This is how far off-screen LEFT the ring's
+    // centre sits, and it is what makes one card face the reader with the rest
+    // of the arc out of frame. Tried at -1.35 to close the right margin: the
+    // ring came far enough in that its arc crossed the middle of the screen,
+    // three cards showed at once and the front one hung half off the right
+    // edge. The margin is not this parameter's to fix — planeSize is.
     posX: -2, // fraction of half the viewport width
     posY: 0,
     endScale: 4.46,
@@ -114,7 +129,7 @@ export function defaultParams() {
     // -- the intro heading, in the scene ---------------------------------
     text: "PHENOME RING",
     textSize: 41,
-    textFont: "PP Neue Montreal",
+    textFont: "helvetica-neue-lt-pro",
     textWeight: 400,
     textTracking: 0, // em
     textColor: "#0a0a0a",
@@ -130,16 +145,28 @@ export function defaultParams() {
     // -- the meta either side of the ring --------------------------------
     // [number . name] left, [type . year] right. Insets and gaps in vw so the
     // pairs hold their relationship as the window changes.
+    // Back to 5.5. Moved to 8 to close the gap to the card, then the card grew
+    // to meet it and the name ended up under the picture's left edge instead.
+    // The gap is the card's to close, and it has.
     metaLeft: 5.5,
     metaRight: 5.5,
-    metaGapL: 4.7,
+    // 4.7 -> 2.5. The number and the name are one lockup; the wide gap was
+    // drawn when the name was 24px and had a screen to sit in. It is the space
+    // this composition had left to give back.
+    metaGapL: 2.5,
     metaGapR: 3.6,
     metaWidth: 34, // this box is the filter region
-    nameSize: (24 / 1440) * 100, // vw, quoted at 1440
-    nameFont: "Satoshi",
+    // 24 -> 30, and the ceiling is set by the card rather than by taste. The
+    // lockup is [number][gap][name] running left to right into the picture, so
+    // the longest of the three names - "Champagne Gold" - is what has to clear
+    // the card's left edge. Measured at 1440 with planeSize 150: the card
+    // starts at 393, and at 34px that name ended at 441, printing over the
+    // photograph. At 30, with the gap below tightened, it ends near 377.
+    nameSize: (30 / 1440) * 100, // vw, quoted at 1440
+    nameFont: "helvetica-neue-lt-pro",
     nameWeight: 500,
-    idxSize: (16 / 1440) * 100, // a step lighter and smaller than the name
-    idxFont: "Geist",
+    idxSize: (20 / 1440) * 100, // a step lighter and smaller than the name
+    idxFont: "helvetica-neue-lt-pro",
     idxWeight: 400,
     listSize: 0.9, // vw; the column's line height is unitless so rows follow
 

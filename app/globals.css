@@ -1,44 +1,37 @@
 @import "tailwindcss";
 
-/* Family names here have to match the strings in ring/params.js — nameFont,
-   idxFont and textFont are looked up by name, not imported. */
+/* ONE FACE, 2026-09-07: helvetica-neue-lt-pro, served from the same Adobe kit
+   the storefront this is embedded in already loads.
 
-/* Project names and disciplines. Two real weights, so nameWeight 400 and 500
-   both resolve to a cut rather than a synthesised one. */
-@font-face {
-  font-family: "Satoshi";
-  src: url("/Ice-works-showcase/Satoshi-Regular.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+   WHAT WENT: three local files — Satoshi (names), Geist (numbers) and PP Neue
+   Montreal (the heading and the cursor tag). They are the original work's own
+   typography and they are good; they are also three faces this piece does not
+   share with the page around it, and an iframe set in a different typeface than
+   its host reads as a different site rather than as a section of one.
 
-@font-face {
-  font-family: "Satoshi";
-  src: url("/Ice-works-showcase/Satoshi-Medium.otf") format("opentype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
+   The .otf/.ttf files stay in public/ rather than being deleted. They are the
+   upstream project's assets, this repo is a deployment fork of it, and nothing
+   costs anything for an unreferenced file to sit there.
 
-/* Numbers, years and the load counter. */
-@font-face {
-  font-family: "Geist";
-  src: url("/Ice-works-showcase/Geist-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+   TWO THINGS THIS FACE HAS TO SURVIVE, both because they are drawn to canvas
+   rather than laid out by the browser:
 
-/* The intro heading and the cursor tag, both rasterised to canvas. Book is
-   the only cut installed, so textWeight has nothing to switch between. */
-@font-face {
-  font-family: "PP Neue Montreal";
-  src: url("/Ice-works-showcase/ppneuemontreal-book.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+   The kit is loaded from the document rather than @font-face'd here, so
+   document.fonts is what knows when it is ready. splitText and tag rasterise
+   with ctx.font, which silently falls back to the platform sans if the face has
+   not arrived — no error, just the wrong letters baked into a texture that is
+   never redrawn. The layout below waits for it.
+
+   Helvetica sets wider than Satoshi at the same size and much wider than PP
+   Neue Montreal. Sizes are unchanged and the piece measures its own text
+   (splitText walks the metrics), so the heading takes the width it takes. */
+/* The kit is linked from app/layout.js, NOT imported here. Tailwind's build
+   resolves and inlines what this file imports, and a remote @import it cannot
+   fetch at build time is simply dropped — verified by grepping the built CSS
+   for "typekit" and finding nothing, while document.fonts stayed empty at
+   runtime. (document.fonts.check lies about this: with no matching face
+   registered it reports true, because the fallback can render the string.)
+   A <link> in the document head cannot be optimised away. */
 
 html,
 body {

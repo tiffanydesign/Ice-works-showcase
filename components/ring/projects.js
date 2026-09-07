@@ -12,27 +12,39 @@
 export const PROJECTS = [
   { file: "1.webp", name: "Ring Family", type: "Product", year: "2026" },
   { file: "2.webp", name: "Sensor Array", type: "Macro", year: "2026" },
-  { file: "3.webp", name: "Champagne Gold", type: "Colourway", year: "2026" },
-  { file: "4.webp", name: "Polished Titanium", type: "CGI", year: "2026" },
-  { file: "5.webp", name: "Arctic White", type: "Colourway", year: "2026" },
   { file: "6.webp", name: "Light Reveal", type: "Art Direction", year: "2026" },
-  { file: "7.webp", name: "Rose Quartz", type: "Colourway", year: "2026" },
   { file: "8.webp", name: "Brushed Silver", type: "Materials", year: "2026" },
-  { file: "9.webp", name: "Midnight Black", type: "Colourway", year: "2025" },
+  // -- the three the scroll visits, and they are ADJACENT on purpose. See the
+  //    note under FOCUS below: the order here is what makes the journey one
+  //    slot per step instead of a spin across the ring.
+  { file: "9.webp", name: "Midnight Black", type: "Colourway", year: "2026" },
+  { file: "3.webp", name: "Champagne Gold", type: "Colourway", year: "2026" },
+  { file: "5.webp", name: "Arctic White", type: "Colourway", year: "2026" },
+  { file: "7.webp", name: "Rose Quartz", type: "Colourway", year: "2026" },
+  { file: "4.webp", name: "Polished Titanium", type: "CGI", year: "2026" },
   { file: "10.webp", name: "Morning Ritual", type: "Lifestyle", year: "2026" },
   { file: "11.webp", name: "Charging Case", type: "Hardware", year: "2026" },
   { file: "12.webp", name: "Training Day", type: "Lifestyle", year: "2025" },
 ];
 
-// THE THREE THE SCROLL VISITS, 2026-09-07. The ring keeps all twelve — the arc
-// is what the piece IS, and three cards on it is a ring with gaps rather than a
-// ring — but the focus journey the host drives stops at three product frames
-// and no more. These are the colourways: what the page is actually selling,
-// and the only cards a reader is being asked to choose between.
+// THE THREE THE SCROLL VISITS. The ring keeps all twelve — the arc is what the
+// piece IS, and three cards on it is a ring with gaps rather than a ring — but
+// the journey the host drives stops at three product frames and no more. These
+// are the colourways: what the page is actually selling, and the only cards a
+// reader is asked to choose between.
 //
-// Indices into PROJECTS above, so reordering that list moves these with it as
-// long as the names go too. White, gold, black — the same light/warm/dark
-// progression the full list alternates on.
-export const FOCUS = [4, 2, 8];
+// ADJACENT, and the list above is ordered for it. Art is dealt by ring slot,
+// and cellOf(slot) counts BACKWARDS: (imageOffset - slot) mod count. So three
+// cells that step down by one — 6, 5, 4 — are three slots that step up by one,
+// and each turn of the journey is a single slot rather than a sweep across the
+// ring. That is why Midnight Black, Champagne Gold, Arctic White sit in that
+// order above and are read out of it in reverse.
+//
+// The cost, stated because the list's own header warns about it: all three sit
+// on blue grounds, so the alternation that keeps neighbouring cards from
+// bleeding into one another in the goo is broken across exactly this run. It
+// reads as one continuous field behind the three, which for a colourway
+// sequence is the right accident.
+export const FOCUS = [6, 5, 4];
 
 export const IMAGE_FILES = PROJECTS.map((p) => p.file);

@@ -388,6 +388,22 @@ export default function Carousel() {
        THE RING KEEPS ALL TWELVE. Only three are ever asked for — the
        colourways, see FOCUS in ring/projects.js — and the other nine are the
        arc they ride on. A ring of three is a ring with gaps in it. */
+    /* DRIVEN MODE, set by the host as ?driven=1 on the iframe src.
+
+       The host needs the pointer to reach this document — hover shading and a
+       click on the product are both asked for — but it must NOT lose the wheel,
+       which is what turns the page and, through the pin, the ring.
+
+       So the frame takes pointer events and this turns off the two inputs that
+       would fight the host for the ring: the wheel and the drag. With no wheel
+       handler and nothing here to scroll, the browser chains the scroll to the
+       parent document, which is exactly the behaviour wanted. A click still
+       lands, and so does hover.
+
+       A flag on the URL rather than "the first host message arrives", because
+       that would leave a window at load where the wheel is still swallowed. */
+    const driven = new URLSearchParams(location.search).has("driven");
+
     let focusAt = -1;
 
     /* FOCUS holds PROJECTS indices, and pick() takes PLANE indices. Those are
@@ -406,6 +422,16 @@ export default function Carousel() {
       const maxPos = Math.ceil((n - 1) / 2);
       if (slot > maxPos) slot -= n;
       return planeAtSlot(slot);
+    };
+
+    /* The forward direction of planeForCell: which cell a plane is wearing.
+       Both are here rather than in the render loop because the render loop's
+       own cellOf closes over locals that only exist per frame. */
+    const cellAtPlane = (plane) => {
+      const n = Math.round(params.count);
+      if (!(plane >= 0) || n <= 0) return -1;
+      const imgOff = Math.round(params.imageOffset);
+      return (((imgOff - signedOffset(plane)) % n) + n) % n;
     };
 
     const goFocus = (n) => {
@@ -509,6 +535,9 @@ export default function Carousel() {
       travelY = e.clientY;
       trackPointer(e);
       if (!interactive) return;
+      /* Driven: the press is still tracked, for hover and for the click test,
+         but it does not take the ring. Nothing here may compete with the pin. */
+      if (driven) return;
       stopPick();
       if (coarse) beginHold();
       dragging = true;
@@ -565,10 +594,31 @@ export default function Carousel() {
     // only ever lands on the card the tag was offering.
     const onClick = () => {
       if (!interactive || pointerTravel >= 5 || over < 0) return;
+
+      /* A click on the card already at the front is a click on the PRODUCT, not
+         a request to turn the ring — there is nowhere to turn it to. It is
+         reported to the host, which owns the site's routes and is the only side
+         that can navigate anyway.
+
+         The cell is what travels, not the plane: the host thinks in products
+         and has never heard of the fan ordering. Name goes with it so the host
+         can route without keeping its own copy of this list.
+
+         Any other card still turns the ring, which is the behaviour the piece
+         has always had and the affordance the hover shading advertises. */
+      const cell = cellAtPlane(over);
+      if (cell >= 0 && cell === focusAt) {
+        const p = PROJECTS[cell];
+        tellHost("card-click", { cell, name: p ? p.name : "" });
+        return;
+      }
       pick(over);
     };
 
-    container.addEventListener("wheel", onWheel, { passive: false });
+    /* Not merely early-returning inside the handler: a non-passive wheel
+       listener tells the browser a preventDefault MIGHT come, which is enough
+       to cost the scroll its fast path even on the frames where it does not. */
+    if (!driven) container.addEventListener("wheel", onWheel, { passive: false });
     container.addEventListener("pointerdown", onPointerDown);
     container.addEventListener("pointermove", onPointerMove);
     container.addEventListener("pointerup", onPointerUp);
@@ -1340,10 +1390,26 @@ export default function Carousel() {
 
     // fonts.ready is reliable, but nothing here is worth a permanently blank
     // page if it ever is not.
+    //
+    // AND fonts.ready ON ITS OWN IS NOT ENOUGH FOR THIS FACE. It settles the
+    // loads that are already PENDING, and a face nothing has used yet is not
+    // pending — it is idle. The heading and the cursor tag are rasterised to
+    // canvas with ctx.font, which does not start a load the way laying out an
+    // element does, so the kit face could still be idle when fonts.ready
+    // resolves and the raster would silently bake the platform sans into a
+    // texture that is never redrawn. No error, just the wrong letters.
+    //
+    // document.fonts.load asks for it explicitly. The size in the string is
+    // required by the shorthand parser and is otherwise irrelevant.
+    const faceReady = document.fonts
+      ? Promise.all([
+          document.fonts.load(`400 40px "${params.textFont}"`),
+          document.fonts.load(`500 40px "${params.nameFont}"`),
+        ]).then(() => document.fonts.ready)
+      : Promise.resolve();
+
     const fontFallback = setTimeout(startEntry, 3000);
-    Promise.all([document.fonts?.ready ?? Promise.resolve(), atlas.first])
-      .then(startEntry)
-      .catch(startEntry);
+    Promise.all([faceReady, atlas.first]).then(startEntry).catch(startEntry);
 
     /* ------------------------------------------------------- dev controls */
     let gui;
@@ -1486,7 +1552,7 @@ export default function Carousel() {
 
       window.removeEventListener("resize", onResize);
       window.removeEventListener("message", onHostMessage);
-      container.removeEventListener("wheel", onWheel);
+      if (!driven) container.removeEventListener("wheel", onWheel);
       container.removeEventListener("pointerdown", onPointerDown);
       container.removeEventListener("pointermove", onPointerMove);
       container.removeEventListener("pointerup", onPointerUp);
