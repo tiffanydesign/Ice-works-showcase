@@ -39,6 +39,30 @@ body {
   margin: 0;
   background: #fafafa;
   overflow: hidden;
+}
+
+/* THE WHEEL HAS TO BE ABLE TO LEAVE THIS DOCUMENT.
+
+   `overflow: hidden` alone would already let it: with nothing here to scroll,
+   the browser chains the gesture out to whatever contains this frame, which is
+   exactly what driven mode is built on — the host pins a section, reads its own
+   scroll and posts a focus index, and Carousel.jsx registers no wheel handler at
+   all in that mode so the page keeps the wheel. See the note there.
+
+   `overscroll-behavior: none` was quietly undoing that. It is not a statement
+   about whether this document scrolls; it is a statement that the gesture STOPS
+   HERE, and the browser honours it on a viewport that cannot scroll a pixel. So
+   a trackpad flick over the ring reached the frame and died, and the host page
+   only moved when the reader dragged its scrollbar — the one route that never
+   touches this document. Measured before the rule was found: a real wheel over
+   the frame moved the host 0px, the same wheel one pixel outside it moved the
+   host the full notch.
+
+   It still earns its place standing alone, where it is what stops the pull-to-
+   refresh and the rubber band on a full-screen piece that owns the gesture. So
+   it is kept for that case and dropped for the embedded one. */
+html:not([data-driven]),
+html:not([data-driven]) body {
   overscroll-behavior: none;
 }
 

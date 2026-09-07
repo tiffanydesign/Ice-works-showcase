@@ -404,6 +404,20 @@ export default function Carousel() {
        that would leave a window at load where the wheel is still swallowed. */
     const driven = new URLSearchParams(location.search).has("driven");
 
+    /* And the flag goes on the document, because turning off the wheel handler
+       is only half of letting the wheel out — globals.css has to stop declaring
+       that the gesture ends here. The reason lives in the note beside that rule;
+       what matters here is that both halves read the same flag, so there is one
+       answer to "is this driven" rather than two that have to be kept agreeing.
+
+       Set here rather than in a head script for the same reason. It costs a
+       moment at load where the wheel is still swallowed, and that moment is
+       free: the host holds the frame's src until the stage reaches the fold, so
+       this document does not exist until the reader is a screen away, and it has
+       that whole screen of scroll to spend before the ring is asked for
+       anything. */
+    if (driven) document.documentElement.dataset.driven = "";
+
     let focusAt = -1;
 
     /* FOCUS holds PROJECTS indices, and pick() takes PLANE indices. Those are
