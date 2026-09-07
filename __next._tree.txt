@@ -1,2 +1,3 @@
-:HL["/Ice-works-showcase/_next/static/chunks/3zslbs42bi2nq.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"rdevx5-f7UQJXrqaa4-Q_"}
+:HL["/Ice-works-showcase/_next/static/chunks/22o2cqlek3qtg.css","style"]
+:HL["https://use.typekit.net/omf6kcr.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"zW3v9cXbwWh1LPAU7mIEu"}
