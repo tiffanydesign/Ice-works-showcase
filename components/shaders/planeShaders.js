@@ -1,4 +1,10 @@
-import { ASCII_GLYPHS } from "../ring/ascii";
+import {
+  ASCII_GLYPHS,
+  ASCII_ROWS,
+  ASCII_WORD,
+  RAMP_ROW,
+  WORD_ROW,
+} from "../ring/ascii";
 
 // Each element of every uniform array below costs a fragment uniform slot.
 // The guaranteed WebGL2 minimum is 224 vec4s, so the link parameters are
@@ -25,6 +31,13 @@ export const fragmentShader = /* glsl */ `
   // Cells across the glyph atlas, and the last index in it.
   #define GLYPHS ${ASCII_GLYPHS.length}.0
   #define GLYPH_LAST ${ASCII_GLYPHS.length - 1}.0
+
+  // Rows down it: the per-letter density ramp, and the same letters at one
+  // size. Cells 0..WORD-1 of the second row spell the brand.
+  #define ASCII_ROWS ${ASCII_ROWS}.0
+  #define RAMP_ROW ${RAMP_ROW}.0
+  #define WORD_ROW ${WORD_ROW}.0
+  #define WORD ${ASCII_WORD}.0
 
   // The three particle fields below each pick a glyph from an expression that
   // was tuned when the set was seven marks long, so they still speak in 0..6.
@@ -80,6 +93,7 @@ export const fragmentShader = /* glsl */ `
   uniform vec4 uFocusParticleBox; // half size, radius, rotation
   uniform vec4 uFocusParticles; // amount, reach px, cell px, opacity
   uniform vec2 uFocusParticleMotion; // flow phase, motion multiplier
+  uniform vec2 uFocusWord; // spell the brand 0/1, how much of it survives 0..1
 
   // --- pointer -------------------------------------------------------------
   // Nothing is ever drawn at the cursor. It only changes how the ring behaves
@@ -115,9 +129,19 @@ export const fragmentShader = /* glsl */ `
     return floor(clamp(ramp / RAMP_SPAN, 0.0, 1.0) * GLYPH_LAST);
   }
 
-  /** Where in the atlas to sample, given a cell and the position inside it. */
-  vec2 asciiUV(float cell, vec2 uv) {
-    return vec2((cell + uv.x) / GLYPHS, uv.y);
+  /**
+   * Where in the atlas to sample, given a row, a cell and the position inside
+   * it. The atlas is a canvas, so its rows run downward, and it is uploaded
+   * flipped like every other texture here — hence the V band of row r is
+   * measured from the top. Getting this backwards samples the ramp where the
+   * word should be, which looks like the wrong letters rather than the wrong
+   * row.
+   */
+  vec2 asciiUV(float cell, float row, vec2 uv) {
+    return vec2(
+      (cell + uv.x) / GLYPHS,
+      (ASCII_ROWS - 1.0 - row + uv.y) / ASCII_ROWS
+    );
   }
 
   // The position inside a cell, for fields that mirror their tiling around the
@@ -332,7 +356,7 @@ export const fragmentShader = /* glsl */ `
     float glyphImage =
       (1.0 - luminance) * 4.8 + gather * 1.35 + seed * 0.8;
     float glyph = glyphCell(mix(glyphBase, glyphImage, imageInfluence));
-    float mask = texture2D(uAsciiTex, asciiUV(glyph, glyphUv)).a;
+    float mask = texture2D(uAsciiTex, asciiUV(glyph, RAMP_ROW, glyphUv)).a;
 
     float born = smoothstep(0.0, 0.09, t);
     float handoff = 1.0 - smoothstep(0.58, 0.96, t);
@@ -403,7 +427,7 @@ export const fragmentShader = /* glsl */ `
     );
     float centreFall = 1.0 - smoothstep(0.0, reach, centreD);
     float glyph = glyphCell(centreFall * 5.2 + seed * 1.45);
-    float mask = texture2D(uAsciiTex, asciiUV(glyph, glyphUv)).a;
+    float mask = texture2D(uAsciiTex, asciiUV(glyph, RAMP_ROW, glyphUv)).a;
 
     float phase = hash21(tile + 29.31) * 6.2831853;
     float pulse = 0.76 + 0.24 * sin(uTime * 3.0 + phase);
@@ -447,8 +471,17 @@ export const fragmentShader = /* glsl */ `
     vec2 glyphUv = fract(gridP);
     float seed = hash21(tile + 223.41);
 
+    // Uniform, so the whole field is in one mode or the other and the branches
+    // below cost nothing.
+    float wordOn = step(0.5, uFocusWord.x);
+
     float density = mix(0.10, 0.76, pow(max(falloff, 0.0), 0.72)) *
                     mix(0.28, 1.0, amount);
+    // Letters are dropped at random to give the field its grain, which reads as
+    // texture on marks and as a misspelling on a word. So word mode lifts the
+    // floor toward solid. What it gives up in grain the distance falloff pays
+    // back, since that still fades the whole halo out on its own.
+    density = mix(density, 1.0, clamp(uFocusWord.y, 0.0, 1.0) * wordOn);
     float present = step(seed, density);
 
     // Cell centre, not pixel. See cellCentre above. This field is the one the
@@ -459,8 +492,23 @@ export const fragmentShader = /* glsl */ `
       halfSize, uFocusParticleBox.z
     );
     float centreFall = 1.0 - smoothstep(0.0, reach, centreD);
-    float glyph = glyphCell(centreFall * 6.35 + (seed - 0.5) * 1.35);
-    float mask = texture2D(uAsciiTex, asciiUV(glyph, glyphUv)).a;
+
+    // Two ways to choose a letter, and they are not a blend of each other.
+    //
+    // By weight, the cell's distance from the card picks a rung of the ramp.
+    // Particles bunch against the card, so that band is the tail of the ramp
+    // and the field reads as V I T Y — weight, not language.
+    //
+    // By column, the cell's own x picks a letter of the word, so a row spells
+    // PHENOME left to right and tiles across the halo. It has to come off the
+    // column and not the distance for the order to survive: distance scatters
+    // the letters radially, which is the whole reason the ramp never spelled
+    // anything. The drift already in gridP then walks the word sideways.
+    float rampGlyph = glyphCell(centreFall * 6.35 + (seed - 0.5) * 1.35);
+    float wordGlyph = mod(floor(gridP.x), WORD);
+    float glyph = mix(rampGlyph, wordGlyph, wordOn);
+    float row = mix(RAMP_ROW, WORD_ROW, wordOn);
+    float mask = texture2D(uAsciiTex, asciiUV(glyph, row, glyphUv)).a;
 
     float phase = hash21(tile + 47.13) * 6.2831853;
     float movingPulse = 0.74 + 0.26 * sin(uTime * 3.2 + phase);

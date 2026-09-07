@@ -121,26 +121,50 @@ because GLSL ES allocates a full vec4 row per uniform-array element whatever
 you declare, so `.zw` were already being paid for. Adding a separate `float[32]`
 would cost 32 more rows against a guaranteed budget of 224.
 
-**`ASCII_GLYPHS` is a density ramp as well as a string.** All three particle
-fields index it by weight — cell 0 at the faint outer edge, the last cell
-against the card — so the order is a distance mapping, not a word anyone reads
-off the screen. It is `PHENOMELONGEVITY`, the brand spelled out, and that is a
-decision rather than an oversight: the letters are **not** in ascending weight
-and are not meant to be. Letters span barely a twofold spread where the marks
-they replaced spanned ninefold, so `ascii.js` solves a per-glyph point size at
-startup — measured against whatever monospace face the platform gives it — and
-that solve is what makes an arbitrary order viable at all. Change the letters
-and the sizes re-solve themselves; change the count and the shader follows,
-because `GLYPHS`/`GLYPH_LAST` are interpolated from `ASCII_GLYPHS.length` and
-the three tuned expressions all speak in a normalised `RAMP_SPAN`.
+**`ASCII_GLYPHS` is a density ramp as well as a string.** The entry assembly and
+the seed-card halo index it by weight — cell 0 at the faint outer edge, the last
+cell against the card — so for those two the order is a distance mapping, not a
+word anyone reads off the screen. It is `PHENOMELONGEVITY`, the brand spelled
+out, and that is a decision rather than an oversight: the letters are **not** in
+ascending weight and are not meant to be. Letters span barely a twofold spread
+where the marks they replaced spanned ninefold, so `ascii.js` solves a per-glyph
+point size at startup — measured against whatever monospace face the platform
+gives it — and that solve is what makes an arbitrary order viable at all. Change
+the letters and the sizes re-solve themselves; change the count and the shader
+follows, because `GLYPHS`/`GLYPH_LAST` are interpolated from
+`ASCII_GLYPHS.length` and the tuned expressions all speak in a normalised
+`RAMP_SPAN`.
 
-**The tail of the ramp is what you see.** Particles bunch up at the near-card
-end of every falloff, so the last three or four cells carry most of the picture
-and the first few are almost invisible. Brand order puts `V I T Y` in that band
-and the field reads as thin vertical strokes; an ink-sorted set puts `G O M N`
-there and reads as a much busier alphabet. Both were built and compared, and
-the brand spelling won on the strength of the spelling. Do not re-sort it on
-the theory that the ramp is broken — check the visible band first.
+**The atlas has two rows, and they are not interchangeable.** Row `RAMP_ROW`
+is that per-letter solve. Row `WORD_ROW` is the same sixteen letters at one
+size, and the hover field reads it as language: `mod(floor(gridP.x), WORD)`,
+so a row spells `PHENOME` — the first seven cells, which the brand string
+already supplies — left to right across the halo. A ramp and a word want
+opposite things from a type size, which is the whole reason for the second row;
+sampling one field from the other row looks like the wrong letters rather than
+the wrong row, so check `asciiUV` before suspecting the atlas. The rows run
+down a canvas while the texture is uploaded flipped, hence the `ASCII_ROWS - 1 -
+row` in the V band.
+
+**The tail of the ramp is what you see — in the two fields that read a ramp.**
+Particles bunch up at the near-card end of every falloff, so the last three or
+four cells carry most of the picture and the first few are almost invisible.
+Brand order puts `V I T Y` in that band and the field reads as thin vertical
+strokes; an ink-sorted set puts `G O M N` there and reads as a much busier
+alphabet. Both were built and compared, and the brand spelling won on the
+strength of the spelling. Do not re-sort it on the theory that the ramp is
+broken — check the visible band first. The hover field escapes this entirely by
+indexing on column instead of distance, which is the only way an order survives
+as an order.
+
+**Word mode trades grain for spelling, deliberately.** `focusParticleWordFill`
+lifts the random thinning toward solid, because a dropped letter reads as a
+misspelling where a dropped mark read as texture; the halo still fades out on
+the distance falloff alone. `focusParticleCell` is the type size, and seven
+letters want roughly half of `focusParticleReach` — which is why the hover
+field's cell is larger than the two ramp fields'. Turning
+`focusParticleWord` off restores the ramp exactly, and that is the comparison to
+make before retuning either knob.
 
 **Mirrored fields need `uprightUV`, not `fract`.** The assembly diamond and the
 seed-card field both mirror their tiling with `abs()` for four-way symmetry,

@@ -21,6 +21,21 @@ import * as THREE from "three";
 // shader.
 export const ASCII_GLYPHS = "PHENOMELONGEVITY";
 
+// Two rows, because a ramp and a word want opposite things from a type size.
+// Row 0 is the ramp above, sized per letter so the set spans a ninefold spread
+// in ink. Row 1 is the same letters at one size, for the hover field, which
+// reads them by column instead of by weight — text varies its ink per letter,
+// never its point size, and the ramp's whole purpose is that it has no single
+// size to read.
+export const ASCII_ROWS = 2;
+export const RAMP_ROW = 0;
+export const WORD_ROW = 1;
+
+// How many leading cells spell the brand. PHENOME|LONGEVITY — the word is
+// already the head of the ramp string, so the word row needs no repacking and
+// no second string to keep in sync.
+export const ASCII_WORD = 7;
+
 // What the ramp has to span. The marks this set replaced ran from a full stop
 // to an `at` sign — about a ninefold spread in coverage — and all three
 // particle fields had their falloff tuned against it. Letters on their own span
@@ -40,6 +55,12 @@ const CELL = 160;
 const BASE = CELL * 0.525;
 const MIN_PX = CELL * 0.15;
 const MAX_PX = CELL * 1.15;
+
+// The word row's one size, as large as the cell will take. A monospace face
+// spends about 0.55 em on the advance and 0.64 on the cap, so a point size of a
+// whole cell leaves a margin on both axes — which it needs, because there are
+// no mipmaps and a letter touching the edge bleeds into its neighbour.
+const WORD_PX = CELL;
 
 // Sizes are solved against the font actually in use rather than baked in as
 // constants: this stack resolves to Consolas on Windows and SF Mono on macOS,
@@ -110,15 +131,21 @@ export function createAsciiTexture() {
 
   const canvas = document.createElement("canvas");
   canvas.width = CELL * ASCII_GLYPHS.length;
-  canvas.height = CELL;
+  canvas.height = CELL * ASCII_ROWS;
 
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   setup(ctx);
 
+  // The word row inks all sixteen cells, not only the seven the word uses.
+  // They cost a few hundred KB of texture that was already allocated, and a
+  // longer word — or a second one — then needs nothing here.
   for (let i = 0; i < ASCII_GLYPHS.length; i++) {
+    const x = i * CELL + CELL * 0.5;
     ctx.font = font(px[i]);
-    ctx.fillText(ASCII_GLYPHS[i], i * CELL + CELL * 0.5, CELL * 0.51);
+    ctx.fillText(ASCII_GLYPHS[i], x, RAMP_ROW * CELL + CELL * 0.51);
+    ctx.font = font(WORD_PX);
+    ctx.fillText(ASCII_GLYPHS[i], x, WORD_ROW * CELL + CELL * 0.51);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
