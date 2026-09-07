@@ -78,7 +78,7 @@ The surrounding UI is restrained and editorial. A near-white field, black typogr
 **Key Characteristics:**
 
 - Near-white full-viewport field with black interface typography.
-- One shader-rendered ring of 18 clipped photographic cards.
+- One shader-rendered ring of 12 clipped photographic cards.
 - Off-screen, asymmetrical staging with a single front-facing card.
 - Liquid joins, honey-like threads, glass-edge refraction, and image crossfades.
 - A particle-to-image opening where a mirrored ASCII diamond becomes the first artwork, followed by a temporary particle field behind the single seed card.
@@ -113,15 +113,20 @@ The interface is deliberately two-color; photographic content owns the chromatic
 
 ### Hierarchy
 
-- **Display** (400, 41px at the reference window, 0em tracking): The rasterized `ICE WORKS` entry heading. It scales with the window fit, gains the narrow text multiplier, and is reduced by the tight heading multiplier.
+- **Display** (400, 41px at the reference window, 0em tracking): The rasterized `PHENOME RING` entry heading. It scales with the window fit, gains the narrow text multiplier, and is reduced by the tight heading multiplier.
 - **Title** (500, 1.6666666667vw in the wide band, -0.01em tracking): Project names and disciplines in the two primary metadata positions. It becomes 1.5 times larger in the narrow band; the lone tight-band name gains a second 1.5 multiplier.
-- **Body** (400, 0.9vw in the wide band, 1.4 line-height, 0.01em tracking): The 18-item project column. It follows the narrow text multiplier and disappears in the tight band.
+- **Body** (400, 0.9vw in the wide band, 1.4 line-height, 0.01em tracking): The 12-item project column. It follows the narrow text multiplier and disappears in the tight band.
 - **Label** (400, 1.1111111111vw in the wide band, -0.01em tracking): Project numbers, years, and the loading counter. It follows the narrow text multiplier.
 - **Cursor Tag** (500 requested, 14px): The rasterized `View` label paired with a 14px arrow. The installed PP Neue Montreal face is the Book/400 cut, so new roles must not depend on additional weights being present.
+- **Particle Ramp** (700, bold monospace, 44px to 150px in a 160px cell): `PHENOMELONGEVITY`, the brand spelled letter by letter, carrying all three particle fields. This is the one role where type is read as weight rather than as language: the shader indexes the set by density, cell 0 at the faint outer edge of a field and the last cell against the card. The order is therefore a distance mapping, not a readable word — P is the faintest speck, Y the boldest mark — and the ramp itself is carried by drawing each letter at its own size. See The Particle Ramp Rule.
 
 ### Named Rules
 
 **The Type Role Rule.** Keep Satoshi on project language, Geist on numbers and years, and PP Neue Montreal on the entry heading and cursor tag.
+
+**The Particle Ramp Rule.** The glyph set is a density ramp and a wordmark at once, and the ramp is the part that has to hold. Any change to it keeps three things: the set still spans roughly a ninefold spread in coverage from first cell to last, every glyph reads the right way round in all four quadrants of a mirrored field, and each glyph is chosen once per cell rather than once per pixel. Letters alone span barely twofold and in brand order are not even in ascending weight, so the spread is held entirely by drawing each one at its own size, solved at runtime against whichever monospace face the platform supplies. That solve is what buys the freedom to order the letters as a word.
+
+**The Visible Band Rule.** Particles crowd the near-card end of every falloff, so the last few cells of the ramp are most of what anyone sees. Letter order is a distance mapping before it is a sequence: whatever sits in those cells sets the character of the whole field. The brand spelling puts `V I T Y` there and reads as thin vertical strokes, which was chosen knowingly over an ink-sorted set that would put `G O M N` there instead. Judge any reordering on that band, not on the atlas.
 
 ## Layout
 
@@ -164,7 +169,7 @@ The ring is not a set of isolated cards: signed-distance-field blending rounds o
 ### Viscous Ring
 
 - **Render model:** One full-screen transparent WebGL shader pass draws every card, image transition, bridge, the bounded card particle fields, cursor tag, and glass edge.
-- **Structure:** 18 cards sit in ring order; fan order starts at the seed and alternates positive and negative signed slots.
+- **Structure:** 12 cards sit in ring order; fan order starts at the seed and alternates positive and negative signed slots.
 - **Interaction:** Wheel, drag, and swipe add rotational momentum; the ring decelerates and snaps to a front-facing slot. Clicking a non-front card centers it.
 - **Pointer response:** The nearest card leans and swells, neighbouring cards push aside and dim, the field softens, a capillary wake can follow pointer speed, and a loose ASCII shadow streams in behind that card. On leave, the same irregular field reverses and exits before detaching from its latched card.
 
@@ -194,7 +199,7 @@ The ring is not a set of isolated cards: signed-distance-field blending rounds o
 
 - **Loader:** A centered three-digit counter runs from `001` to `100` at 1vh from the bottom. Reaching `100` is the sole gate that releases the ring entry.
 - **Particle assembly:** On desktop, the first atlas image begins as a 3.8× expanded, four-way mirrored ASCII diamond. The diamond contracts symmetrically, morphs into a rectangle, and gradually adopts the image's colour and luminance over 1.55s before crossfading into a centre card at 2.6× authored scale. A second mirrored field streams inward behind the isolated card, breathes while it holds, reverses through the diamond tips as the card launches, and is fully gone before the ring fans open. Reduced motion skips this spatial assembly.
-- **Heading:** `ICE WORKS` reveals per glyph, wiping upward for 0.95s with `power4.out` and 0.015s stagger, then fades before the ring lands.
+- **Heading:** `PHENOME RING` reveals per glyph, wiping upward for 0.95s with `power4.out` and 0.015s stagger, then fades before the ring lands.
 - **Layering:** The heading is rendered inside the scene so cards can sweep over it.
 
 ### Cursor Tag

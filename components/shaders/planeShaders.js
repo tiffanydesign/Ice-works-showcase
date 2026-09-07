@@ -1,3 +1,5 @@
+import { ASCII_GLYPHS } from "../ring/ascii";
+
 // Each element of every uniform array below costs a fragment uniform slot.
 // The guaranteed WebGL2 minimum is 224 vec4s, so the link parameters are
 // packed into one vec4 array and the image index is derived arithmetically
@@ -19,6 +21,16 @@ export const fragmentShader = /* glsl */ `
 
   #define MAX_PLANES ${MAX_PLANES}
   #define MAX_LINKS ${MAX_LINKS}
+
+  // Cells across the glyph atlas, and the last index in it.
+  #define GLYPHS ${ASCII_GLYPHS.length}.0
+  #define GLYPH_LAST ${ASCII_GLYPHS.length - 1}.0
+
+  // The three particle fields below each pick a glyph from an expression that
+  // was tuned when the set was seven marks long, so they still speak in 0..6.
+  // Normalising by that and scaling to GLYPH_LAST means the glyph set can grow
+  // or shrink without any of the three needing to be retuned.
+  #define RAMP_SPAN 6.0
 
   varying vec2 vUv;
 
@@ -96,6 +108,42 @@ export const fragmentShader = /* glsl */ `
     p = fract(p * vec2(123.34, 456.21));
     p += dot(p, p + 45.32);
     return fract(p.x * p.y);
+  }
+
+  // A place on the 0..RAMP_SPAN weight ramp to a cell in the glyph atlas.
+  float glyphCell(float ramp) {
+    return floor(clamp(ramp / RAMP_SPAN, 0.0, 1.0) * GLYPH_LAST);
+  }
+
+  /** Where in the atlas to sample, given a cell and the position inside it. */
+  vec2 asciiUV(float cell, vec2 uv) {
+    return vec2((cell + uv.x) / GLYPHS, uv.y);
+  }
+
+  // The position inside a cell, for fields that mirror their tiling around the
+  // origin to get four-way symmetry. Taking fract of abs runs backwards on the
+  // negative side of each axis, which flipped the old abstract marks invisibly
+  // but turns letters into a different alphabet. The grid stays mirrored; only
+  // the sampling inside each cell is straightened back up.
+  vec2 uprightUV(vec2 p) {
+    vec2 uv = fract(abs(p));
+    return mix(uv, 1.0 - uv, step(p, vec2(0.0)));
+  }
+
+  /** Which side of each axis a cell sits on, never zero. */
+  vec2 mirrorSign(vec2 p) {
+    return mix(vec2(1.0), vec2(-1.0), step(p, vec2(0.0)));
+  }
+
+  // Whatever a field reads to choose a glyph, it has to read it once per cell
+  // and not once per pixel. All three ramps here run a step every few pixels
+  // against cells of eleven to eighteen, so nearly every cell straddles a
+  // boundary: sampled per pixel it draws the top of one letter above the
+  // bottom of the next. Abstract marks absorbed that. Letters do not — they
+  // come out as chimeras. So each field walks the pixel back to the centre of
+  // its own cell and asks the question there.
+  vec2 cellCentre(vec2 q, vec2 gridP, vec2 tile, vec2 sgn, float cell) {
+    return q + (sgn * (tile + 0.5) - gridP) * cell;
   }
 
   // --- glass lip -----------------------------------------------------------
@@ -262,10 +310,14 @@ export const fragmentShader = /* glsl */ `
     vec2 gridP = current / cell;
     vec2 mirrored = abs(gridP);
     vec2 tile = floor(mirrored);
-    vec2 glyphUv = fract(mirrored);
+    vec2 glyphUv = uprightUV(gridP);
     float seed = hash21(tile + 71.19);
 
-    vec2 imageUv = target / uSize + 0.5;
+    // Sampled at the cell centre, so the letter is one ramp step in one colour
+    // rather than a gradient sliced across it. See cellCentre above.
+    vec2 centreTarget =
+      cellCentre(q, gridP, tile, mirrorSign(gridP), cell) / cloudScale;
+    vec2 imageUv = centreTarget / uSize + 0.5;
     imageUv.y = 1.0 - imageUv.y;
     imageUv = clamp(imageUv, 0.004, 0.996);
     vec3 art = uTextured > 0.5
@@ -279,12 +331,8 @@ export const fragmentShader = /* glsl */ `
     float glyphBase = 3.0 + seed * 2.0;
     float glyphImage =
       (1.0 - luminance) * 4.8 + gather * 1.35 + seed * 0.8;
-    float glyph = floor(clamp(
-      mix(glyphBase, glyphImage, imageInfluence),
-      0.0, 6.0
-    ));
-    vec2 atlasP = vec2((glyph + glyphUv.x) / 7.0, glyphUv.y);
-    float mask = texture2D(uAsciiTex, atlasP).a;
+    float glyph = glyphCell(mix(glyphBase, glyphImage, imageInfluence));
+    float mask = texture2D(uAsciiTex, asciiUV(glyph, glyphUv)).a;
 
     float born = smoothstep(0.0, 0.09, t);
     float handoff = 1.0 - smoothstep(0.58, 0.96, t);
@@ -338,20 +386,24 @@ export const fragmentShader = /* glsl */ `
     // so the same glyphs visibly peel back out through the four diamond tips.
     float travel = enter * 2.2 - leave * 5.0 + uTime * 0.16 * life;
     vec2 particleP = q + direction * cell * travel;
-    vec2 gridP = abs(particleP / cell);
+    vec2 raw = particleP / cell;
+    vec2 gridP = abs(raw);
     vec2 tile = floor(gridP);
-    vec2 glyphUv = fract(gridP);
+    vec2 glyphUv = uprightUV(raw);
     float seed = hash21(tile + 143.57);
 
     float density = mix(0.12, 0.66, enter) *
                     mix(0.62, 1.0, pow(max(falloff, 0.0), 0.55));
     float present = step(seed, density);
-    float glyph = floor(clamp(
-      falloff * 5.2 + seed * 1.45,
-      0.0, 6.0
-    ));
-    vec2 atlasP = vec2((glyph + glyphUv.x) / 7.0, glyphUv.y);
-    float mask = texture2D(uAsciiTex, atlasP).a;
+
+    // Cell centre, not pixel. See cellCentre above.
+    float centreD = sdRoundBox(
+      cellCentre(q, raw, tile, mirrorSign(raw), cell),
+      halfSize, min(uRadius, halfSize.y)
+    );
+    float centreFall = 1.0 - smoothstep(0.0, reach, centreD);
+    float glyph = glyphCell(centreFall * 5.2 + seed * 1.45);
+    float mask = texture2D(uAsciiTex, asciiUV(glyph, glyphUv)).a;
 
     float phase = hash21(tile + 29.31) * 6.2831853;
     float pulse = 0.76 + 0.24 * sin(uTime * 3.0 + phase);
@@ -398,12 +450,17 @@ export const fragmentShader = /* glsl */ `
     float density = mix(0.10, 0.76, pow(max(falloff, 0.0), 0.72)) *
                     mix(0.28, 1.0, amount);
     float present = step(seed, density);
-    float glyph = floor(clamp(
-      falloff * 6.35 + (seed - 0.5) * 1.35,
-      0.0, 6.0
-    ));
-    vec2 atlasP = vec2((glyph + glyphUv.x) / 7.0, glyphUv.y);
-    float mask = texture2D(uAsciiTex, atlasP).a;
+
+    // Cell centre, not pixel. See cellCentre above. This field is the one the
+    // cursor puts on screen, so it is also the one where sliced letterforms
+    // were most obvious.
+    float centreD = sdRoundBox(
+      cellCentre(q, gridP, tile, vec2(1.0), cell),
+      halfSize, uFocusParticleBox.z
+    );
+    float centreFall = 1.0 - smoothstep(0.0, reach, centreD);
+    float glyph = glyphCell(centreFall * 6.35 + (seed - 0.5) * 1.35);
+    float mask = texture2D(uAsciiTex, asciiUV(glyph, glyphUv)).a;
 
     float phase = hash21(tile + 47.13) * 6.2831853;
     float movingPulse = 0.74 + 0.26 * sin(uTime * 3.2 + phase);

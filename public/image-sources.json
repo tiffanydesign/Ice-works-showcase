@@ -1,0 +1,18 @@
+{
+  "note": "PhenomeTech smart ring product and lifestyle photography, supplied by the project owner for this demo. Each webp is the named source rendered to the 1536x1024 (3:2) cell the carousel plane expects. Not covered by the repository's MIT licence.",
+  "cell": "1536x1024",
+  "images": {
+    "1.webp": { "source": "rings hero.png", "fit": "cover" },
+    "2.webp": { "source": "closeup ring.png", "fit": "cover" },
+    "3.webp": { "source": "gold.png", "fit": "cover" },
+    "4.webp": { "source": "ring v1.png", "fit": "cover" },
+    "5.webp": { "source": "white.png", "fit": "cover" },
+    "6.webp": { "source": "phenome-stash-13-Jul-12.23.png", "fit": "cover" },
+    "7.webp": { "source": "pink.png", "fit": "cover" },
+    "8.webp": { "source": "silver.png", "fit": "cover" },
+    "9.webp": { "source": "black.png", "fit": "cover" },
+    "10.webp": { "source": "phenome-stash-13-Jul-12.46.png", "fit": "cover" },
+    "11.webp": { "source": "charging case.png", "fit": "contain, sides edge-extended" },
+    "12.webp": { "source": "phenome-stash-13-Jul-12.48.png", "fit": "cover" }
+  }
+}
