@@ -6,7 +6,7 @@ non-obvious in ways that look like bugs.
 
 ## What this is
 
-A single-page portfolio carousel. Eighteen project cards sit on a ring that is
+A single-page portfolio carousel. Twelve project cards sit on a ring that is
 mostly off-screen to the left; you see an arc of it. Scroll, drag or swipe
 turns the ring, and it snaps so a card faces front. The cards are not DOM
 elements or textured quads — the whole ring is **one full-screen fragment
@@ -41,7 +41,7 @@ components/
   Carousel.jsx        the component. renderer, resize/fit, input, spin
                        physics, the per-frame layout loop, the entry timeline
   ring/
-    projects.js        the eighteen projects, in ring order
+    projects.js        the twelve projects, in ring order
     params.js          every tunable, as a factory
     utils.js           TAU/DEG, easings, signedOffset, chase
     atlas.js           packs all art into one texture, incrementally
@@ -120,6 +120,37 @@ the side-card dim), `w` is which atlas cell the plane wears. They ride together
 because GLSL ES allocates a full vec4 row per uniform-array element whatever
 you declare, so `.zw` were already being paid for. Adding a separate `float[32]`
 would cost 32 more rows against a guaranteed budget of 224.
+
+**`ASCII_GLYPHS` is a density ramp as well as a string.** All three particle
+fields index it by weight — cell 0 at the faint outer edge, the last cell
+against the card — so the order is a distance mapping, not a word anyone reads
+off the screen. It is `PHENOMELONGEVITY`, the brand spelled out, and that is a
+decision rather than an oversight: the letters are **not** in ascending weight
+and are not meant to be. Letters span barely a twofold spread where the marks
+they replaced spanned ninefold, so `ascii.js` solves a per-glyph point size at
+startup — measured against whatever monospace face the platform gives it — and
+that solve is what makes an arbitrary order viable at all. Change the letters
+and the sizes re-solve themselves; change the count and the shader follows,
+because `GLYPHS`/`GLYPH_LAST` are interpolated from `ASCII_GLYPHS.length` and
+the three tuned expressions all speak in a normalised `RAMP_SPAN`.
+
+**The tail of the ramp is what you see.** Particles bunch up at the near-card
+end of every falloff, so the last three or four cells carry most of the picture
+and the first few are almost invisible. Brand order puts `V I T Y` in that band
+and the field reads as thin vertical strokes; an ink-sorted set puts `G O M N`
+there and reads as a much busier alphabet. Both were built and compared, and
+the brand spelling won on the strength of the spelling. Do not re-sort it on
+the theory that the ramp is broken — check the visible band first.
+
+**Mirrored fields need `uprightUV`, not `fract`.** The assembly diamond and the
+seed-card field both mirror their tiling with `abs()` for four-way symmetry,
+which runs the in-cell coordinate backwards on the negative side of each axis.
+That was invisible when the glyphs were `.:+x*#@`; with letters it renders half
+the field in a mirror alphabet.
+
+**The shaders are template literals.** A backtick anywhere in a GLSL comment
+ends the string and the file fails to parse, several hundred lines from the
+thing you actually edited. Write `abs()` in prose, not in backticks.
 
 **Art is dealt by ring slot, negated.** `cellOf(slot)` in the layout loop.
 Negated because turning the ring forward walks the front slot _backwards_, and
@@ -200,18 +231,19 @@ is missing versus what is deliberate.
 2. **Fonts are `.otf`/`.ttf`, ~340 KB.** Converting to `woff2` would cut that
    by roughly 60%. PP Neue Montreal is also gitignored, so the heading falls
    back on a fresh clone — see below.
-3. **The art is webp but still oversized.** ~3.3 MB across eighteen files. The
-   atlas downsamples every one to a 512px cell, so resizing the sources to
-   match would cut it again by a large margin.
+3. **The art is webp and roughly right.** ~700 KB across twelve files, each
+   1536x1024. The atlas still downsamples every one to a 512px cell, so there
+   is headroom left, but not the order of magnitude there used to be.
 4. **`prefers-reduced-motion` is unhandled.** Six seconds of animated blur with
    no escape hatch.
 5. **No keyboard control.** Arrow keys should step the ring; the project column
    is `pointer-events-none` and cannot be clicked to jump.
-6. **All the sample data is placeholder.** Every `type` and `year` in
-   `projects.js` is invented and names marked `(*)` are guesses. The images
-   are other people's work, collected from Behance to build the layout
-   against — not the author's, not licensed, and flagged as such in the README
-   and LICENSE. Do not present them as portfolio work or strip those notices.
+6. **The labels are descriptive, not a record.** Every `type` and `year` in
+   `projects.js` describes the shot rather than a real commission. The images
+   are PhenomeTech smart ring photography supplied for this demo — not the
+   author's, not covered by the repository's MIT licence, and flagged as such
+   in the README and in `public/image-sources.json`. Do not present them as
+   portfolio work or strip those notices.
 7. **Phone widths are approximate.** The `tight` band was tuned at the 640 end
    of its range. Below ~500px `minScale` pins the ring's size while `posX`
    keeps scaling, so the front card drifts back toward centre.
@@ -246,3 +278,13 @@ looks like a rendering bug rather than a missing file.
 - `components/TwoPlaneMorph.jsx` — an earlier experiment, nothing imports it.
 - `shader` (repo root, no extension) — a 13 KB paste of somebody's component
   library docs. Not code, not referenced.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
