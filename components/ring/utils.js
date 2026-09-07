@@ -20,6 +20,19 @@ export const smoothstep = (a, b, x) => {
 export const signedOffset = (i) =>
   i === 0 ? 0 : i % 2 === 1 ? (i + 1) / 2 : -i / 2;
 
+// The inverse: which plane sits at ring slot s. Needed because three different
+// numberings are in play and it is easy to hand one where another is meant —
+// which is exactly the bug this was written for.
+//
+//   plane   fan order, 0 1 2 3 ...     what pick() takes
+//   slot    ring position, 0 +1 -1 +2 -2 ...   signedOffset(plane)
+//   cell    which art the slot wears, (imageOffset - slot) mod count
+//
+// A PROJECTS index is a CELL. Handing one to pick() as a plane turns the ring
+// to the wrong card silently and consistently, which reads as an off-by-some
+// rather than as a category error.
+export const planeAtSlot = (s) => (s === 0 ? 0 : s > 0 ? 2 * s - 1 : -2 * s);
+
 // Relaxation factor toward a target. Rates are written per 60fps frame and
 // corrected for real frame time, so the feel holds at any refresh rate.
 export const chase = (dt, rate) => 1 - Math.pow(1 - rate, dt * 60);

@@ -110,13 +110,6 @@ export function defaultParams() {
     pickTime: 0.55, // click-to-centre: seconds for one slot, root-scaled
     pickEase: "power3.inOut",
 
-    // -- autoplay ---------------------------------------------------------
-    // The deck turns itself; see the runner in Carousel.jsx. autoFirst is the
-    // beat after the entry settles before the first advance — long enough that
-    // the ring is read as having arrived rather than as still assembling.
-    // autoHold is the look at each card after the turn into it.
-    autoFirst: 1.6,
-    autoHold: 1.9,
 
     // -- the intro heading, in the scene ---------------------------------
     text: "PHENOME RING",

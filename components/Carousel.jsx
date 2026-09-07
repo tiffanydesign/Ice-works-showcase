@@ -16,7 +16,7 @@ import { createSplitText } from "./ring/splitText";
 import { createTag, TAG_W, TAG_H } from "./ring/tag";
 import { createAsciiTexture } from "./ring/ascii";
 import { defaultParams } from "./ring/params";
-import { IMAGE_FILES, PROJECTS } from "./ring/projects";
+import { FOCUS, IMAGE_FILES, PROJECTS } from "./ring/projects";
 import {
   TAU,
   HALF_PI,
@@ -25,6 +25,7 @@ import {
   clamp01,
   easeInOutCubic,
   easeOutCubic,
+  planeAtSlot,
   signedOffset,
   smoothstep,
 } from "./ring/utils";
@@ -369,69 +370,75 @@ export default function Carousel() {
       });
     };
 
-    /* --------------------------------------------------------- autoplay */
-    /* THE DECK PLAYS ITSELF, 2026-09-07.
+    /* ------------------------------------------------------ driven focus */
+    /* THE HOST OWNS THE SCROLL, 2026-09-07.
 
-       This piece used to be a page of its own, where taking the wheel was the
-       whole interaction. It is embedded in a product page now, inside a section
-       the reader is scrolling past, and a carousel that waits to be grabbed in
-       that position is a carousel nobody turns — the two controls that used to
-       ask for the grab ("Spin the ring family", "Release the wheel") are gone
-       from the host page with this change.
+       This piece used to be a page of its own, where the wheel was the whole
+       interaction. Embedded in a product page it cannot be: the wheel belongs
+       to the document the reader is scrolling, and an iframe that swallows it
+       is a page that has stopped responding with nothing on screen to explain
+       why. It also cannot scroll the host itself — different origin, and the
+       host is where the pinning happens anyway.
 
-       So it advances on its own: settle, hold, advance, and after the last card
-       tell the host it is finished. A human who does grab it — a wheel, a drag,
-       a click — takes it over permanently; autoplay never fights a pointer and
-       never resumes behind one.
+       So the host pins its section, maps the scroll through it onto 0, 1, 2,
+       and posts the index here. This turns the ring to the matching card and
+       does nothing else. One direction of control, and the piece keeps no
+       state the host does not already have.
 
-       The hand-off is a postMessage rather than a scroll, because this document
-       is in an iframe and scrolling itself would move nothing the reader can
-       see. The host decides what "next" means. */
-    let autoAt = 0;
-    let autoTimer = 0;
-    let autoDone = false;
-    let autoCancelled = reducedMotion.matches;
+       THE RING KEEPS ALL TWELVE. Only three are ever asked for — the
+       colourways, see FOCUS in ring/projects.js — and the other nine are the
+       arc they ride on. A ring of three is a ring with gaps in it. */
+    let focusAt = -1;
 
-    const cancelAuto = () => {
-      autoCancelled = true;
-      clearTimeout(autoTimer);
-      autoTimer = 0;
+    /* FOCUS holds PROJECTS indices, and pick() takes PLANE indices. Those are
+       two different numberings with a third between them - see planeAtSlot in
+       ring/utils.js for all three. Resolving here rather than writing plane
+       numbers into FOCUS keeps that list readable as what it is: a list of
+       products. */
+    const planeForCell = (cell) => {
+      const n = Math.round(params.count);
+      const imgOff = Math.round(params.imageOffset);
+      /* cellOf(slot) is (imgOff - slot) mod n, so the slot wearing this cell is
+         imgOff - cell, wrapped. */
+      let slot = (((imgOff - cell) % n) + n) % n;
+      /* signedOffset spans -floor((n-1)/2) .. +ceil((n-1)/2); fold the positive
+         residue into that range or planeAtSlot walks off the end of the ring. */
+      const maxPos = Math.ceil((n - 1) / 2);
+      if (slot > maxPos) slot -= n;
+      return planeAtSlot(slot);
     };
 
-    const tellHost = (what) => {
+    const goFocus = (n) => {
+      const cell = FOCUS[n];
+      if (cell === undefined || cell === focusAt) return;
+      focusAt = cell;
+      pick(planeForCell(cell));
+    };
+
+    const onHostMessage = (e) => {
+      const d = e && e.data;
+      if (!d || d.type !== "phenome-focus") return;
+      if (!interactive) return;      /* still assembling; the host will resend */
+      goFocus(d.index | 0);
+    };
+
+    const tellHost = (what, extra) => {
       if (window.parent === window) return;
       try {
-        window.parent.postMessage({ source: "phenome-ring-showcase", type: what }, "*");
+        window.parent.postMessage(
+          Object.assign({ source: "phenome-ring-showcase", type: what }, extra),
+          "*",
+        );
       } catch (e) {
-        /* A host on another origin that refuses the message is not a failure
-           worth breaking the carousel over. */
+        /* A host that refuses the message is not a failure worth breaking the
+           carousel over — it simply never drives, and the ring sits on its
+           opening card, which is a complete thing to look at. */
       }
     };
 
-    const autoStep = () => {
-      if (autoCancelled || disposed) return;
-      const last = Math.round(params.count) - 1;
-      if (autoAt >= last) {
-        if (!autoDone) {
-          autoDone = true;
-          /* The last card has had its hold; the reader has seen all three. */
-          tellHost("finished");
-        }
-        return;
-      }
-      autoAt += 1;
-      pick(autoAt);
-      /* pickTime is per slot and the run is always one slot, so the wait is
-         the tween plus the beat the card is meant to be looked at for. */
-      autoTimer = setTimeout(autoStep, (params.pickTime + params.autoHold) * 1000);
-    };
+    window.addEventListener("message", onHostMessage);
 
-    const startAuto = () => {
-      if (autoCancelled || autoTimer) return;
-      autoTimer = setTimeout(autoStep, params.autoFirst * 1000);
-    };
-
-    /* ------------------------------------------------------------ pointer */
+    /* ------------------------------------------------------------ pointer */    /* ------------------------------------------------------------ pointer */
     // World px, origin at screen centre, Y up — the space the shader works in,
     // so nothing is converted twice.
     //
@@ -560,14 +567,6 @@ export default function Carousel() {
       if (!interactive || pointerTravel >= 5 || over < 0) return;
       pick(over);
     };
-
-    /* One listener rather than three inside the handlers: the point is that ANY
-       deliberate input ends autoplay, and stating it once means a fourth input
-       added later cannot forget to. Capture, so it lands before the handler
-       that acts on the event. */
-    for (const ev of ["wheel", "pointerdown", "touchstart", "keydown"]) {
-      container.addEventListener(ev, cancelAuto, { capture: true, passive: true });
-    }
 
     container.addEventListener("wheel", onWheel, { passive: false });
     container.addEventListener("pointerdown", onPointerDown);
@@ -1189,7 +1188,10 @@ export default function Carousel() {
         delay: 0.25,
         onComplete: () => {
           interactive = true;
-          startAuto();
+          /* The host may have scrolled into the section before the entry
+             finished, in which case its index is already correct and it is
+             waiting to be told it can send again. */
+          tellHost("ready", { count: FOCUS.length });
         },
       });
 
@@ -1483,10 +1485,7 @@ export default function Carousel() {
       renderer.setAnimationLoop(null);
 
       window.removeEventListener("resize", onResize);
-      clearTimeout(autoTimer);
-      for (const ev of ["wheel", "pointerdown", "touchstart", "keydown"]) {
-        container.removeEventListener(ev, cancelAuto, { capture: true });
-      }
+      window.removeEventListener("message", onHostMessage);
       container.removeEventListener("wheel", onWheel);
       container.removeEventListener("pointerdown", onPointerDown);
       container.removeEventListener("pointermove", onPointerMove);
