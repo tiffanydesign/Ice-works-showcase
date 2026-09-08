@@ -208,7 +208,6 @@ export default function Carousel() {
         live: liveRef.current,
       },
       params,
-      driven,
     );
 
     /* ---------------------------------------------------------------- art */
@@ -1627,10 +1626,16 @@ export default function Carousel() {
       {[{ side: "left", justify: "flex-start" }].map(({ side, justify }) => {
         // Baseline, not centre: the halves are set at different sizes, and a
         // shared baseline is what makes them read as one lockup.
+        //
+        // Wrapping, and the second slot is given basis 100% in ring/meta.js so
+        // it always takes its own line: [product] above, [colour] under it.
+        // nowrap moves to the slots themselves — the row has to be allowed to
+        // break or the colour would trail along one baseline, but no single
+        // word in it should ever break inside itself.
         const row = (
-          <span className="flex items-baseline whitespace-nowrap">
-            <span />
-            <span />
+          <span className="flex flex-wrap items-baseline">
+            <span className="whitespace-nowrap" />
+            <span className="whitespace-nowrap" />
           </span>
         );
         return (

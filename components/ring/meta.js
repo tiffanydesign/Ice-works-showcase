@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { PROJECTS, FOCUS } from "./projects";
+import { PROJECTS } from "./projects";
 
 /**
  * The lockup of type beside the ring: [number . name], on the left. It reads
@@ -29,6 +29,22 @@ import { PROJECTS, FOCUS } from "./projects";
 // rather than hidden in CSS, so the DOM, the morph timelines and the goo
 // filter it drives all go with it.
 const SIDES = ["left"];
+
+/* TWO SLOTS: [product] above, [colour] under it.
+
+   It was [number] [name] on one line. The number is gone — the tab bar under
+   the ring counts the deck now, with a dot per colourway and a ring on the one
+   showing, so a numeral beside the picture was the same fact said twice and the
+   quieter of the two ways of saying it.
+
+   What replaced it is the product, and that is not decoration: two of the six
+   colours are called Black, so the colour alone stopped identifying the card —
+   "Black" over a ceramic frame and "Black" over a titanium one are different
+   rings. The finish is what tells them apart and it has to be on screen.
+
+   The colour keeps the big half and the morph, because it is what changes on
+   every step and it is what the reader is choosing. The product line changes
+   twice in the whole journey and rides the same morph for free. */
 const SLOTS = 2;
 
 const slotsOf = (row) => row?.firstElementChild?.children;
@@ -59,8 +75,8 @@ function createGroup(side, groups, params) {
   // rows are rewritten on every change rather than trading places: a word can
   // move between the filtered rows and the steady one from change to change,
   // and alternating would leave whichever row it left holding something stale.
-  let prev = ["", ""];
-  let moving = [false, false];
+  let prev = Array(SLOTS).fill("");
+  let moving = Array(SLOTS).fill(false);
 
   const draw = () => {
     const g = groups[side];
@@ -91,8 +107,8 @@ function createGroup(side, groups, params) {
     }
   };
 
-  // parts[0] is the leading slot, parts[1] the trailing one. Which of those is
-  // the big half depends on the side and is decided in style() below.
+  // parts[0] the number, parts[1] the product, parts[2] the colour. Which of
+  // them is the big half, and which line each sits on, is decided in style().
   const set = (parts) => {
     const g = groups[side];
     if (!g?.layers[0] || !g.layers[1] || !g.plain) return;
@@ -104,8 +120,8 @@ function createGroup(side, groups, params) {
     m.t = 1;
     draw();
 
-    const next = [parts[0] ?? "", parts[1] ?? ""];
-    moving = [next[0] !== prev[0], next[1] !== prev[1]];
+    const next = Array.from({ length: SLOTS }, (_, j) => parts[j] ?? "");
+    moving = next.map((w, j) => w !== prev[j]);
 
     const out = slotsOf(g.layers[0]);
     const into = slotsOf(g.layers[1]);
@@ -119,7 +135,7 @@ function createGroup(side, groups, params) {
 
     // Card changed but this group did not. Nothing to melt, and no reason to
     // switch the threshold on.
-    if (!moving[0] && !moving[1]) {
+    if (!moving.some(Boolean)) {
       m.t = 1;
       draw();
       return;
@@ -142,7 +158,7 @@ function createGroup(side, groups, params) {
  * refs: { groups, list, loader, cut, live } — DOM handed over from the
  * component. `groups` is the shape the JSX populates, one entry per side.
  */
-export function createMeta(refs, params, driven = false) {
+export function createMeta(refs, params) {
   const { groups, list, cut, live } = refs;
   const left = createGroup("left", groups, params);
 
@@ -222,14 +238,25 @@ export function createMeta(refs, params, driven = false) {
         layer.style.justifyContent =
           corner || isRight ? "flex-end" : "flex-start";
         const row = layer.firstElementChild;
-        row.style.gap = `${isRight ? params.metaGapR : params.metaGapL}vw`;
+        // Only the row gap does any work now that the lockup is one word per
+        // line. A fifth of the big size rather than a figure of its own: the
+        // leading has to grow with the type or the lockup comes apart across a
+        // breakpoint.
+        row.style.columnGap = `${isRight ? params.metaGapR : params.metaGapL}vw`;
+        row.style.rowGap = `${bigVw * 0.22}vw`;
+        row.style.justifyContent = corner || isRight ? "flex-end" : "flex-start";
         const [lead, trail] = row.children;
-        // The number is what goes in the corner layout. Its morph carries on
-        // underneath, so nothing needs resyncing on the way back out.
+        // The product is what goes in the corner layout — there the ring is
+        // most of the screen and only the colour fits. Its morph carries on
+        // underneath, so nothing needs resyncing on the way out. It sets small,
+        // and never empty: show() falls back to the card's type.
         lead.style.display = corner ? "none" : "";
-        lead.style.fontFamily = isRight ? bigFace : smallFace;
-        lead.style.fontSize = isRight ? big : small;
-        lead.style.fontWeight = isRight ? bigWeight : smallWeight;
+        lead.style.fontFamily = smallFace;
+        lead.style.fontSize = small;
+        lead.style.fontWeight = smallWeight;
+        // Its own line, always: basis 100% is what breaks the wrap under the
+        // product rather than trailing it along one baseline.
+        trail.style.flexBasis = "100%";
         trail.style.fontFamily = isRight ? smallFace : bigFace;
         trail.style.fontSize = isRight ? small : big;
         trail.style.fontWeight = isRight ? smallWeight : bigWeight;
@@ -244,38 +271,22 @@ export function createMeta(refs, params, driven = false) {
     setThreshold();
   };
 
-  /* THE NUMBER COUNTS THE JOURNEY, NOT THE RING, when the host is driving.
-
-     Standing alone the ring is twelve cards and the number is which of the
-     twelve you are looking at — 01 to 12, and the count is the point.
-
-     Driven, the reader is never shown twelve. The host stops at the three
-     colourways in FOCUS and those are cells 5, 6 and 7 of the list, so the
-     lockup read "06 Champagne Gold" beside a control that had just called it
-     the second of three. Two numbering systems on one screen, and the one the
-     reader can act on was not the one on the picture. So in driven mode the
-     number is the position in FOCUS: 01, 02, 03.
-
-     Not renumbered in PROJECTS instead, because the ring keeps all twelve and
-     their order is what puts these three one slot apart — see the note there.
-     The list stays the ring's; only the counting changes. */
-  const numberOf = (i) => {
-    if (driven) {
-      const at = FOCUS.indexOf(i);
-      if (at >= 0) return at + 1;
-    }
-    return i + 1;
-  };
-
-  // Both groups in one call, so the number can never drift from the name it
-  // is numbering.
+  // Both slots in one call, so the finish can never drift from the colour it
+  // is labelling.
   const show = (i) => {
     const p = PROJECTS[i];
     if (!p) return;
-    left.set([String(numberOf(i)).padStart(2, "0"), p.name]);
+    // The six colourways carry a product; the other six fall back to their
+    // type, which keeps the line populated and — unlike the [type . year]
+    // caption this replaced — changing from card to card.
+    left.set([p.product || p.type, p.name]);
     // The group is hidden from the accessibility tree, so the card is
     // announced once, in full, from the live region instead of twice.
-    if (live) live.textContent = `${p.name}. ${p.type}, ${p.year}.`;
+    if (live) {
+      live.textContent = p.product
+        ? `${p.product}, ${p.name}. ${p.type}, ${p.year}.`
+        : `${p.name}. ${p.type}, ${p.year}.`;
+    }
   };
 
   const dispose = () => {
