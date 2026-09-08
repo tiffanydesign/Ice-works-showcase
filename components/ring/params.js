@@ -84,11 +84,11 @@ export function defaultParams() {
 
     // -- loading ---------------------------------------------------------
     // The counter is the gate: the entry launches on the frame it reads 100.
-    // holdAfter is a beat held after that and wants to stay near zero.
+    // It is no longer DRAWN — see the note in tickLoader — so what is left here
+    // is the pacing of that gate and nothing about a numeral.
+    // holdAfter is a beat held after 100 and wants to stay near zero.
     holdAfter: 0,
     loaderChase: 0.18,
-    loaderBottom: 1, // vh
-    loaderOut: 0.45, // seconds to fade once the hold lets go
 
     // -- entry timing ----------------------------------------------------
     stagger: 0.34,

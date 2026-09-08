@@ -43,7 +43,6 @@ export default function Carousel() {
   const containerRef = useRef(null);
   const listRef = useRef(null);
   const itemsRef = useRef([]);
-  const loaderRef = useRef(null);
   const liveRef = useRef(null);
   const cutRef = useRef(null);
   // Per side: the box that positions the lockup, the filtered wrapper the goo
@@ -57,7 +56,30 @@ export default function Carousel() {
   useEffect(() => {
     const container = containerRef.current;
     const listEl = listRef.current;
-    const loaderEl = loaderRef.current;
+
+    /* DRIVEN MODE, set by the host as ?driven=1 on the iframe src.
+
+       Read at the top because three separate things below answer to it and one
+       of them is the very first thing built: the lockup's numbering (see the
+       createMeta call), the wheel and the drag (see the note where they are
+       registered), and the flag on the document that lets the wheel out of the
+       frame at all (globals.css). One read, one answer to "is this driven".
+
+       A flag on the URL rather than "the first host message arrives", because
+       that would leave a window at load where the wheel is still swallowed. */
+    const driven = new URLSearchParams(location.search).has("driven");
+
+    /* The flag goes on the document, because turning off the wheel handler is
+       only half of letting the wheel out — globals.css has to stop declaring
+       that the gesture ends here. The reason lives in the note beside that rule.
+
+       Set here rather than in a head script because the moment it costs is
+       free: the host holds the frame's src until the stage reaches the fold, so
+       this document does not exist until the reader is a screen away, and it
+       has that whole screen of scroll to spend before the ring is asked for
+       anything. */
+    if (driven) document.documentElement.dataset.driven = "";
+
     // Async work (atlas decode, the lil-gui import) can land after cleanup
     // under StrictMode's double mount. Everything deferred checks this.
     let disposed = false;
@@ -182,11 +204,11 @@ export default function Carousel() {
       {
         groups: metaRef.current,
         list: listEl,
-        loader: loaderEl,
         cut: cutRef.current,
         live: liveRef.current,
       },
       params,
+      driven,
     );
 
     /* ---------------------------------------------------------------- art */
@@ -388,7 +410,8 @@ export default function Carousel() {
        THE RING KEEPS ALL TWELVE. Only three are ever asked for — the
        colourways, see FOCUS in ring/projects.js — and the other nine are the
        arc they ride on. A ring of three is a ring with gaps in it. */
-    /* DRIVEN MODE, set by the host as ?driven=1 on the iframe src.
+    /* WHAT DRIVEN MODE DOES TO THE INPUTS. `driven` itself is read at the top
+       of the effect; this is the note for the two it switches off here.
 
        The host needs the pointer to reach this document — hover shading and a
        click on the product are both asked for — but it must NOT lose the wheel,
@@ -398,25 +421,7 @@ export default function Carousel() {
        would fight the host for the ring: the wheel and the drag. With no wheel
        handler and nothing here to scroll, the browser chains the scroll to the
        parent document, which is exactly the behaviour wanted. A click still
-       lands, and so does hover.
-
-       A flag on the URL rather than "the first host message arrives", because
-       that would leave a window at load where the wheel is still swallowed. */
-    const driven = new URLSearchParams(location.search).has("driven");
-
-    /* And the flag goes on the document, because turning off the wheel handler
-       is only half of letting the wheel out — globals.css has to stop declaring
-       that the gesture ends here. The reason lives in the note beside that rule;
-       what matters here is that both halves read the same flag, so there is one
-       answer to "is this driven" rather than two that have to be kept agreeing.
-
-       Set here rather than in a head script for the same reason. It costs a
-       moment at load where the wheel is still swallowed, and that moment is
-       free: the host holds the frame's src until the stage reaches the fold, so
-       this document does not exist until the reader is a screen away, and it has
-       that whole screen of scroll to spend before the ring is asked for
-       anything. */
-    if (driven) document.documentElement.dataset.driven = "";
+       lands, and so does hover. */
 
     let focusAt = -1;
 
@@ -685,9 +690,12 @@ export default function Carousel() {
       const target = Math.min(loadProg, clamp01(state.progress));
       loading.shown += (target - loading.shown) * chase(dt, params.loaderChase);
 
-      // Never 000; that reads as nothing happening.
+      // THE COUNT IS NOT DRAWN ANY MORE, and it is still counted. What used to
+      // be a 001-to-100 numeral at the foot of the frame was never only a
+      // readout: `n` reaching 100 is the gate below, and the entry timeline
+      // parks on a pause until it opens. Deleting the number is a deletion of
+      // the number; the arithmetic is the mechanism and stays.
       const n = Math.min(100, Math.max(1, Math.round(loading.shown * 100)));
-      if (loaderEl) loaderEl.textContent = String(n).padStart(3, "0");
 
       if (!launchReady && n >= 100) {
         launchReady = true;
@@ -1244,9 +1252,6 @@ export default function Carousel() {
       stopPick();
 
       const gen = ++entryGen;
-      // Only the first run has anything to wait for; a replay should not flash
-      // the counter back up.
-      if (loaderEl) gsap.set(loaderEl, { opacity: launchReady ? 0 : 1 });
 
       const tl = gsap.timeline({
         delay: 0.25,
@@ -1282,13 +1287,6 @@ export default function Carousel() {
           gsap.delayedCall(params.holdAfter, () => {
             if (disposed || gen !== entryGen) return;
             tl.resume();
-            if (loaderEl) {
-              gsap.to(loaderEl, {
-                opacity: 0,
-                duration: params.loaderOut,
-                ease: "power2.in",
-              });
-            }
           });
         });
       });
@@ -1679,12 +1677,12 @@ export default function Carousel() {
         );
       })}
 
-      {/* 001 to 100. Holds the entry at the seed until it gets there. */}
-      <div
-        ref={loaderRef}
-        aria-hidden="true"
-        className="pointer-events-none fixed left-1/2 z-10 -translate-x-1/2 tracking-[-0.01em] text-[#0a0a0a]"
-      />
+      {/* The 001-to-100 numeral stood here and is gone. It was the last thing
+          on screen before the ring, which made the first impression of the
+          piece a progress bar — and this is embedded in a product page now,
+          where the reader has already scrolled a screen and is owed the ring
+          rather than a number telling them to wait for it. The count that
+          gated the entry is untouched; see tickLoader. */}
 
       <div ref={liveRef} aria-live="polite" className="sr-only" />
 

@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { PROJECTS } from "./projects";
+import { PROJECTS, FOCUS } from "./projects";
 
 /**
  * The lockup of type beside the ring: [number . name], on the left. It reads
@@ -142,8 +142,8 @@ function createGroup(side, groups, params) {
  * refs: { groups, list, loader, cut, live } — DOM handed over from the
  * component. `groups` is the shape the JSX populates, one entry per side.
  */
-export function createMeta(refs, params) {
-  const { groups, list, loader, cut, live } = refs;
+export function createMeta(refs, params, driven = false) {
+  const { groups, list, cut, live } = refs;
   const left = createGroup("left", groups, params);
 
   // Only the alpha row does any work; colour passes straight through.
@@ -236,17 +236,35 @@ export function createMeta(refs, params) {
       }
     }
 
-    // The column and the counter are set from here too, so all the type moves
-    // as one piece across a breakpoint instead of half of it growing.
+    // The column is set from here too, so all the type moves as one piece
+    // across a breakpoint instead of half of it growing. The load counter used
+    // to be sized here as well and no longer exists.
     if (list) list.style.fontSize = `${params.listSize * textK}vw`;
-    if (loader) {
-      loader.style.bottom = `${params.loaderBottom}vh`;
-      loader.style.fontFamily = smallFace;
-      loader.style.fontSize = small;
-      loader.style.fontWeight = smallWeight;
-    }
 
     setThreshold();
+  };
+
+  /* THE NUMBER COUNTS THE JOURNEY, NOT THE RING, when the host is driving.
+
+     Standing alone the ring is twelve cards and the number is which of the
+     twelve you are looking at — 01 to 12, and the count is the point.
+
+     Driven, the reader is never shown twelve. The host stops at the three
+     colourways in FOCUS and those are cells 5, 6 and 7 of the list, so the
+     lockup read "06 Champagne Gold" beside a control that had just called it
+     the second of three. Two numbering systems on one screen, and the one the
+     reader can act on was not the one on the picture. So in driven mode the
+     number is the position in FOCUS: 01, 02, 03.
+
+     Not renumbered in PROJECTS instead, because the ring keeps all twelve and
+     their order is what puts these three one slot apart — see the note there.
+     The list stays the ring's; only the counting changes. */
+  const numberOf = (i) => {
+    if (driven) {
+      const at = FOCUS.indexOf(i);
+      if (at >= 0) return at + 1;
+    }
+    return i + 1;
   };
 
   // Both groups in one call, so the number can never drift from the name it
@@ -254,7 +272,7 @@ export function createMeta(refs, params) {
   const show = (i) => {
     const p = PROJECTS[i];
     if (!p) return;
-    left.set([String(i + 1).padStart(2, "0"), p.name]);
+    left.set([String(numberOf(i)).padStart(2, "0"), p.name]);
     // The group is hidden from the accessibility tree, so the card is
     // announced once, in full, from the live region instead of twice.
     if (live) live.textContent = `${p.name}. ${p.type}, ${p.year}.`;
