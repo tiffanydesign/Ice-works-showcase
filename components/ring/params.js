@@ -249,9 +249,36 @@ export function defaultParams() {
     focusParticleDrift: 0.7,
     focusParticleOut: 3.2,
 
+    // -- where the entry starts ------------------------------------------
+    // THE PIECE OPENS ALREADY LAUNCHED. Its full entry ran particles -> a
+    // large card at centre -> a contraction out to the small card at the
+    // right -> the ring. Embedded in the storefront's ring section that first
+    // half was three seconds of overture before anything recognisable as the
+    // product appeared, and a reader scrolling into an iframe does not wait
+    // through an overture. So the timeline is seeded at the state the launch
+    // used to END on — one card, small, right of centre — and the first thing
+    // drawn is the thing worth seeing. Everything from the spread onward is
+    // untouched: the ring still fans to twelve, the lockup still wipes in, the
+    // stage still moves and spins.
+    //
+    // Set false to get the overture back. `assemble` and `launchTime` below
+    // are still live and still correct — they simply describe a stretch that
+    // is no longer played, which is why they are kept rather than deleted.
+    openLaunched: true,
+    // A beat on that first card before the ring fires, and it is not optional.
+    // The seeded frame is drawn as soon as the atlas has its first cell, and
+    // the gate below it releases the moment the counter lands — measured on a
+    // warm localhost that is 130ms, which is a flash rather than an opening.
+    // The overture used to do this job by taking three seconds to arrive; with
+    // it gone, this is the only thing that lets the card be read before it
+    // multiplies. Held separately from `holdAfter` so the un-launched path
+    // keeps the timing it was tuned with.
+    openHold: 0.7,
+
     // -- particle-to-image opening --------------------------------------
     // The first atlas cell begins as a four-way mirrored ASCII diamond. It
     // contracts and squares into a large centre card before the ring fires.
+    // Skipped entirely while `openLaunched` is on.
     assemble: true,
     assembleFrom: 1024,
     assembleTime: 1.55,

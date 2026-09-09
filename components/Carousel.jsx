@@ -776,8 +776,13 @@ export default function Carousel() {
       const g = (1 + (endScale - 1) * shift) * fit;
       const cx = posX * viewW * 0.5 * shift;
       const cy = params.posY * viewH * 0.5 * shift;
+      // `openLaunched` seeds the entry past the assemble, so the particle path
+      // has nothing left to draw — see params. Both uIntro and uCardParticles
+      // read this flag for their opacity, so switching it off here retires the
+      // whole opening rather than leaving it running at zero effect.
       const assembleOn =
         params.assemble &&
+        !params.openLaunched &&
         viewW > params.assembleFrom &&
         !reducedMotion.matches;
       // The gathered image earns a larger beat at centre, then contracts as
@@ -1254,6 +1259,11 @@ export default function Carousel() {
 
       const tl = gsap.timeline({
         delay: 0.25,
+        // Held from the first frame when the entry opens already launched: the
+        // seeded state below is applied outside this timeline, so there is
+        // nothing to render before the gate lets go. See the branch further
+        // down for why the pause is here rather than an addPause.
+        paused: params.openLaunched,
         onComplete: () => {
           interactive = true;
           /* The host may have scrolled into the section before the entry
@@ -1263,42 +1273,93 @@ export default function Carousel() {
         },
       });
 
+      const openLaunched = params.openLaunched;
       const assembleMotion =
         params.assemble &&
+        !openLaunched &&
         viewW > params.assembleFrom &&
         !reducedMotion.matches;
-      tl.fromTo(
-        state,
-        { progress: 0, launch: 0, spread: 0, spin: 0, shift: 0 },
-        {
-          progress: 1,
-          duration: assembleMotion ? params.assembleTime : 0.65,
-          ease: assembleMotion ? params.assembleEase : "power1.out",
-        },
-      );
 
-      // Formed and sitting at centre. It stays there until the counter lands,
-      // so the ring can never unfurl into cards with nothing on them. Usually
-      // there is nothing left to wait for by the time the playhead arrives —
-      // the counter is paced against this same birth.
-      tl.addPause(">", () => {
+      if (openLaunched) {
+        // Seeded OUTSIDE the timeline, and that is the whole trick. `launch: 1`
+        // is the exact state the launch tween further down used to finish on —
+        // the single small card sitting right of centre — so the first painted
+        // frame is the one the entry used to spend three seconds arriving at.
+        // As a `tl.set()` child it never applied: the timeline is held for the
+        // gate, a held timeline does not render, and an unrendered `set` sets
+        // nothing. Measured as a blank canvas that never recovered. Applied
+        // directly, the state is true from frame one whatever the timeline is
+        // doing.
+        gsap.set(state, { progress: 1, launch: 1, spread: 0, spin: 0, shift: 0 });
+      } else {
+        tl.fromTo(
+          state,
+          { progress: 0, launch: 0, spread: 0, spin: 0, shift: 0 },
+          {
+            progress: 1,
+            duration: assembleMotion ? params.assembleTime : 0.65,
+            ease: assembleMotion ? params.assembleEase : "power1.out",
+          },
+        );
+      }
+
+      // Formed and waiting. It holds until the counter lands, so the ring can
+      // never unfurl into cards with nothing on them. Usually there is nothing
+      // left to wait for by the time the playhead arrives — the counter is
+      // paced against this same birth.
+      //
+      // `openHold` is the beat on the seeded card, and zero on the un-launched
+      // path where the assemble has already given the eye its opening.
+      const releaseGate = () => {
         whenReady(() => {
-          gsap.delayedCall(params.holdAfter, () => {
+          // The counter has done its whole job the moment the atlas is
+          // complete, so it leaves then rather than when the ring fires. On
+          // the old entry those were the same instant (holdAfter is 0); with a
+          // held opening card between them, keeping the two tied would park a
+          // finished "100" on top of the card and read as still loading.
+          if (loaderEl) {
+            gsap.to(loaderEl, {
+              opacity: 0,
+              duration: params.loaderOut,
+              ease: "power2.in",
+            });
+          }
+          const hold = params.holdAfter + (openLaunched ? params.openHold : 0);
+          gsap.delayedCall(hold, () => {
             if (disposed || gen !== entryGen) return;
             tl.resume();
           });
         });
-      });
+      };
 
-      tl.to(state, {
-        launch: 1,
-        duration: params.launchTime,
-        ease: "power2.inOut",
-      });
+      if (openLaunched) {
+        // NOT addPause, and the reason is a position rather than a preference.
+        // With the seed moved out of the timeline there is nothing in it before
+        // the spread, so ">" resolves to 0 — a position the playhead STARTS on
+        // rather than crosses, and a pause there never fires. Measured: with
+        // the hold at 2.4s the ring had fully spread by 1.6s, because the gate
+        // was not running at all. The timeline is constructed `paused` instead
+        // and the gate resumes it, which does not care where the playhead
+        // began.
+        releaseGate();
+      } else {
+        tl.addPause(">", releaseGate);
+      }
+
+      if (!openLaunched) {
+        tl.to(state, {
+          launch: 1,
+          duration: params.launchTime,
+          ease: "power2.inOut",
+        });
+      }
 
       // Absolute positions from here, so the stage can be dropped anywhere
       // inside the spread rather than only after it.
-      const spreadStart = tl.duration() - 0.15;
+      // The -0.15 overlaps the spread with the tail of the launch. With no
+      // launch tween to overlap there is nothing behind zero to reach back
+      // into, and a negative position would start the ring before the gate.
+      const spreadStart = Math.max(0, tl.duration() - 0.15);
       tl.to(
         state,
         { spread: 1, duration: params.spreadTime, ease: params.spreadEase },
