@@ -1312,18 +1312,15 @@ export default function Carousel() {
       // path where the assemble has already given the eye its opening.
       const releaseGate = () => {
         whenReady(() => {
-          // The counter has done its whole job the moment the atlas is
-          // complete, so it leaves then rather than when the ring fires. On
-          // the old entry those were the same instant (holdAfter is 0); with a
-          // held opening card between them, keeping the two tied would park a
-          // finished "100" on top of the card and read as still loading.
-          if (loaderEl) {
-            gsap.to(loaderEl, {
-              opacity: 0,
-              duration: params.loaderOut,
-              ease: "power2.in",
-            });
-          }
+          // This used to fade the loader numeral out here, and that code was
+          // written against a counter that no longer exists — `the count stops
+          // being drawn` removed the element and `params.loaderOut` with it,
+          // and the rebase carried my reference to both across a file where
+          // neither is declared any more. `loaderEl` is not a stale falsy
+          // variable, it is an undeclared identifier: a ReferenceError the
+          // moment the gate opens. The gate still gates on `launchReady`,
+          // which tickLoader still sets; only the fade is gone, because there
+          // is nothing left to fade.
           const hold = params.holdAfter + (openLaunched ? params.openHold : 0);
           gsap.delayedCall(hold, () => {
             if (disposed || gen !== entryGen) return;
